@@ -1,0 +1,49 @@
+[package]
+name = "babypi"
+version = "0.1.0"
+edition = "2021"
+default-run = "babypi-server"
+
+[dependencies]
+anyhow = "1"
+dotenvy = "0"
+
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "^0.7", features = ["codec", "compat"] }
+tokio-stream = "0"
+tokio_schedule = "0"
+
+futures-util = "0"
+
+tracing = { version = "0", features = ["valuable"] }
+tracing-subscriber = { version = "0", features = ["json", "valuable"] }
+tracing-actix-web = "0"
+
+actix-web = "4"
+actix-cors = "0"
+actix-files = "0"
+actix-session = { version = "0", features = [
+    "cookie-session",
+] }
+
+async-recursion = "1"
+
+itertools = "0"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order", "indexmap"] }
+indexmap = { version = "2", features = ["serde"] }
+
+chrono = "0"
+
+regex = "1"
+
+image = "0"
+
+toml = { version = "0", features = ["preserve_order"] }
+
+clap = { version = "4", features = ["derive"] }
+
+# console = "0"
+# dialoguer = { version = "0", features = ["history"] }
+# indicatif = "0"
