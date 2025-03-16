@@ -41,12 +41,12 @@ async fn main() -> Result<()> {
     .spawn()
     .await?;
 
-    sleep(Duration::from_secs(2)).await;
-
     let mut stdout = cam
         .stdout
         .take()
         .ok_or_else(|| anyhow!("Failed to capture child process output for {}", RPICAM_BIN))?;
+
+    sleep(Duration::from_secs(2)).await;
 
     // let stderr = cam.stderr.take().ok_or_else(|| {
     //     anyhow!(
