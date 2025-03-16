@@ -1,7 +1,10 @@
 use std::{path::PathBuf, process::Stdio, str::FromStr};
 
 use babypi::rpicam::{Rpicam, RpicamCodec, RpicamDeviceMode, RPICAM_BIN};
-use tokio::process::Command;
+use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    process::Command,
+};
 use tracing::{error, info};
 use tracing_subscriber::{util::SubscriberInitExt, FmtSubscriber};
 
@@ -42,7 +45,7 @@ async fn main() -> Result<()> {
         .take()
         .ok_or_else(|| anyhow!("Failed to capture child process output for {}", RPICAM_BIN))?;
 
-    // let stderr = child.stderr.take().ok_or_else(|| {
+    // let stderr = cam.stderr.take().ok_or_else(|| {
     //     anyhow!(
     //         "Failed to capture child process err output for {}",
     //         RPICAM_BIN
@@ -50,6 +53,10 @@ async fn main() -> Result<()> {
     // })?;
 
     // let mut reader = BufReader::new(stderr).lines();
+
+    // while let Some(line) = reader.next_line().await? {
+    //     info!("Process {}: {}", RPICAM_BIN, line);
+    // }
 
     tokio::spawn(async move {
         match cam.wait().await {
@@ -105,7 +112,8 @@ async fn main() -> Result<()> {
     let mut ffmpeg = Command::new("ffmpeg")
         .args(&ffmpeg_args)
         .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
+        .stdout(Stdio::inherit())
+        //.stderr(Stdio::piped())
         .spawn()?;
 
     if let Some(mut ffmpeg_stdin) = ffmpeg.stdin.take() {

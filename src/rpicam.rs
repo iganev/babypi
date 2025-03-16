@@ -356,7 +356,7 @@ impl Rpicam {
             .args(&args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(Stdio::inherit())
             .spawn()
             .map_err(|e| anyhow!("Failed to spawn child process {}: {}", RPICAM_BIN, e))?;
 
