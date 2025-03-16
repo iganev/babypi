@@ -15,6 +15,8 @@ tokio_schedule = "0"
 
 futures-util = "0"
 
+nix = { version = "0", features = ["process"] }
+
 tracing = { version = "0", features = ["valuable"] }
 tracing-subscriber = { version = "0", features = ["json", "valuable"] }
 tracing-actix-web = "0"

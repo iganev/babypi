@@ -62,14 +62,19 @@ pub struct RpicamDevice {
 
 impl Rpicam {
     pub async fn list_cameras() -> Result<Vec<RpicamDevice>> {
-        let mut cmd = Command::new(RPICAM_BIN);
-        cmd.arg("--list-cameras");
-
-        cmd.stdout(Stdio::piped());
-
-        let mut child = cmd
+        let mut child = Command::new(RPICAM_BIN)
+            .arg("--list-cameras")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| anyhow!("Failed to spawn child process {}: {}", RPICAM_BIN, e))?;
+
+        let Some(pid) = child.id() else {
+            return Err(anyhow!(
+                "Failed to resolve child process PID for {}",
+                RPICAM_BIN
+            ));
+        };
 
         let stdout = child
             .stdout
