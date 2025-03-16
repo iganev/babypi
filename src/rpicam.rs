@@ -14,12 +14,12 @@ use tracing::info;
 pub const RPICAM_BIN: &str = "rpicam-vid";
 
 pub const RPICAM_LIST_REGEX_DEVICE: &str =
-    r#"(\d+)\s:\s(.*)?\s\[(\d+)x(\d+)\s(\d+)-bit\]\s\((.*)?\)"#;
+    r#"^(\d+)\s:\s(.*)?\s\[(\d+)x(\d+)\s(\d+)-bit\]\s\((.*)?\)"#;
 pub static RPICAM_LIST_REGEX_DEVICE_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(RPICAM_LIST_REGEX_DEVICE).expect("Failed to compile device regex"));
 
 pub const RPICAM_LIST_REGEX_MODE_FORMAT_START: &str =
-    r#"'([^']+)'\s*:\s*(\d+)x(\d+)\s+\[(\d+)\..*?\s+fps"#;
+    r#"^\s+'([^']+)'\s*:\s*(\d+)x(\d+)\s+\[(\d+)\..*?\s+fps"#;
 pub static RPICAM_LIST_REGEX_MODE_FORMAT_START_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(RPICAM_LIST_REGEX_MODE_FORMAT_START)
         .expect("Failed to compile mode format start regex")
