@@ -14,7 +14,7 @@ use tracing::info;
 pub const RPICAM_BIN: &str = "rpicam-vid";
 
 pub const RPICAM_LIST_REGEX_DEVICE: &str =
-    r#"^(\d+)\s:\s(.*)?\s\[(\d+)x(\d+)\s(\d+)-bit\]\s\((.*)?\)"#;
+    r#"^(\d+)\s:\s(.*)\s\[(\d+)x(\d+)\s(\d+)-bit\]\s\((.*)\)"#;
 pub static RPICAM_LIST_REGEX_DEVICE_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(RPICAM_LIST_REGEX_DEVICE).expect("Failed to compile device regex"));
 
@@ -171,8 +171,7 @@ impl Rpicam {
         while let Some(line) = reader.next_line().await? {
             if let Some((_full, [index, sensor, max_width, max_height, max_bits, path])) =
                 RPICAM_LIST_REGEX_DEVICE_REGEX
-                    .captures_iter(&line)
-                    .next()
+                    .captures(&line)
                     .map(|caps| caps.extract())
             {
                 if let Some(current_device) = current_device {
@@ -197,8 +196,7 @@ impl Rpicam {
                 ));
             } else if let Some((full, [format, width, height, fps])) =
                 RPICAM_LIST_REGEX_MODE_FORMAT_START_REGEX
-                    .captures_iter(&line)
-                    .next()
+                    .captures(&line)
                     .map(|caps| caps.extract())
             {
                 if let Some(current_device) = current_device.as_mut() {
@@ -220,8 +218,7 @@ impl Rpicam {
                 }
             } else if let Some((full, [width, height, fps])) =
                 RPICAM_LIST_REGEX_MODE_FORMAT_CONTINUE_REGEX
-                    .captures_iter(&line)
-                    .next()
+                    .captures(&line)
                     .map(|caps| caps.extract())
             {
                 if let Some(current_device) = current_device.as_mut() {
