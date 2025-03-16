@@ -1,9 +1,10 @@
-use std::{path::PathBuf, process::Stdio, str::FromStr};
+use std::{path::PathBuf, process::Stdio, str::FromStr, time::Duration};
 
 use babypi::rpicam::{Rpicam, RpicamCodec, RpicamDeviceMode, RPICAM_BIN};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     process::Command,
+    time::sleep,
 };
 use tracing::{error, info};
 use tracing_subscriber::{util::SubscriberInitExt, FmtSubscriber};
@@ -39,6 +40,8 @@ async fn main() -> Result<()> {
     )
     .spawn()
     .await?;
+
+    sleep(Duration::from_secs(2)).await;
 
     let mut stdout = cam
         .stdout
