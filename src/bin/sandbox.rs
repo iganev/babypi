@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use babypi::rpicam::Rpicam;
+use tracing::info;
 use tracing_subscriber::{util::SubscriberInitExt, FmtSubscriber};
 
 use anyhow::Result;
@@ -15,6 +16,8 @@ async fn main() -> Result<()> {
         .init();
 
     let res = Rpicam::list_cameras().await?;
+
+    info!("Devices: {:?}", res);
 
     Ok(())
 }
