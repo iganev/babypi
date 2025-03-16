@@ -93,7 +93,7 @@ async fn main() -> Result<()> {
 
     let ffmpeg_args = [
         "-y",
-        "-probesize 32M",
+        // "-probesize 32M",
         "-thread_queue_size 256",
         "-use_wallclock_as_timestamps 1",
         "-i pipe:",
