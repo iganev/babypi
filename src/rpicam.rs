@@ -310,15 +310,19 @@ impl Rpicam {
     //
     fn build_rpicam_cmd_args(&self) -> Vec<String> {
         let mut args = Vec::new();
-        args.push("-t 0".to_string());
+        args.push("-t".to_string());
+        args.push(0.to_string());
+
         args.push("-n".to_string());
 
         if let Some(tuning_file) = self.tuning_file.as_deref() {
-            args.push(format!("--tuning-file {}", tuning_file.to_string_lossy()));
+            args.push("--tuning-file".to_string());
+            args.push(tuning_file.to_string_lossy().to_string());
         }
 
         if let Some(codec) = &self.codec {
-            args.push(format!("--codec {}", codec));
+            args.push("--codec".to_string());
+            args.push(codec.to_string());
 
             if *codec == RpicamCodec::H264 {
                 args.push("--inline".to_string());
@@ -332,9 +336,14 @@ impl Rpicam {
             (mode.width, mode.height, mode.fps)
         };
 
-        args.push(format!("--framerate {}", fps));
-        args.push(format!("--width {}", w));
-        args.push(format!("--height {}", h));
+        args.push("--framerate".to_string());
+        args.push(fps.to_string());
+
+        args.push("--width".to_string());
+        args.push(w.to_string());
+
+        args.push("--height".to_string());
+        args.push(h.to_string());
 
         let output = self
             .output_file
@@ -342,7 +351,8 @@ impl Rpicam {
             .and_then(|p| p.to_str())
             .unwrap_or("-");
 
-        args.push(format!("-o {}", output));
+        args.push("-o".to_string());
+        args.push(output.to_string());
 
         args
     }

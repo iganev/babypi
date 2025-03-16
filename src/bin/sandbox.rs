@@ -93,19 +93,32 @@ async fn main() -> Result<()> {
 
     let ffmpeg_args = [
         "-y",
-        // "-probesize 32M",
-        "-thread_queue_size 256",
-        "-use_wallclock_as_timestamps 1",
-        "-i pipe:",
-        "-c:v copy",
-        "-f segment",
-        "-segment_time 4",
-        "-segment_format mpegts",
-        "-segment_list \"/var/stream/live.m3u8\"",
-        "-segment_list_size 8",
-        "-segment_list_flags live",
-        "-segment_list_type m3u8",
-        "-segment_wrap 10",
+        "-probesize",
+        "32M",
+        "-thread_queue_size",
+        "256",
+        "-use_wallclock_as_timestamps",
+        "1",
+        "-i",
+        "pipe:",
+        "-c:v",
+        "copy",
+        "-f",
+        "segment",
+        "-segment_time",
+        "4",
+        "-segment_format",
+        "mpegts",
+        "-segment_list",
+        "/var/stream/live.m3u8",
+        "-segment_list_size",
+        "8",
+        "-segment_list_flags",
+        "live",
+        "-segment_list_type",
+        "m3u8",
+        "-segment_wrap",
+        "10",
         "\"/var/stream/%08d.ts\"",
     ];
 
@@ -113,7 +126,7 @@ async fn main() -> Result<()> {
         .args(&ffmpeg_args)
         .stdin(Stdio::piped())
         .stdout(Stdio::inherit())
-        //.stderr(Stdio::piped())
+        .stderr(Stdio::inherit())
         .spawn()?;
 
     if let Some(mut ffmpeg_stdin) = ffmpeg.stdin.take() {
