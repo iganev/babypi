@@ -172,8 +172,8 @@ impl Rpicam {
             if let Some((_full, [index, sensor, max_width, max_height, max_bits, path])) =
                 RPICAM_LIST_REGEX_DEVICE_REGEX
                     .captures_iter(&line)
-                    .map(|caps| caps.extract())
                     .next()
+                    .map(|caps| caps.extract())
             {
                 if let Some(current_device) = current_device {
                     results.push(current_device);
@@ -198,8 +198,8 @@ impl Rpicam {
             } else if let Some((full, [format, width, height, fps])) =
                 RPICAM_LIST_REGEX_MODE_FORMAT_START_REGEX
                     .captures_iter(&line)
-                    .map(|caps| caps.extract())
                     .next()
+                    .map(|caps| caps.extract())
             {
                 if let Some(current_device) = current_device.as_mut() {
                     current_format = Some(format.to_string());
@@ -221,8 +221,8 @@ impl Rpicam {
             } else if let Some((full, [width, height, fps])) =
                 RPICAM_LIST_REGEX_MODE_FORMAT_CONTINUE_REGEX
                     .captures_iter(&line)
-                    .map(|caps| caps.extract())
                     .next()
+                    .map(|caps| caps.extract())
             {
                 if let Some(current_device) = current_device.as_mut() {
                     if let Some(current_format) = current_format.as_deref() {
