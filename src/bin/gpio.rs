@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
     let mut uart = Uart::new(115_200, Parity::None, 8, 1)
         .map_err(|e| anyhow!("Failed to init UART: {}", e))?;
 
-    let mut buf = Vec::new();
+    let mut buf = [0; 255];
 
     loop {
         let len = uart
@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
             .map_err(|e| anyhow!("Failed to read UART: {}", e))?;
 
         if len > 0 {
-            println!("UART: {}", String::from_utf8_lossy(&buf));
+            println!("UART: {}", String::from_utf8_lossy(&buf[0..len]));
         } else {
             println!("No data");
             break;
