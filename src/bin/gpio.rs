@@ -1,6 +1,8 @@
 use anyhow::anyhow;
 use anyhow::Result;
 use rppal::gpio::Gpio;
+use rppal::uart::Parity;
+use rppal::uart::Uart;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -23,6 +25,24 @@ async fn main() -> Result<()> {
     ircut_ctrl_gpio.toggle();
 
     println!("IRCut is now {}", ircut_ctrl_gpio.is_set_high());
+
+    let mut uart = Uart::new(115_200, Parity::None, 8, 1)
+        .map_err(|e| anyhow!("Failed to init UART: {}", e))?;
+
+    let mut buf = Vec::new();
+
+    loop {
+        let len = uart
+            .read(&mut buf)
+            .map_err(|e| anyhow!("Failed to read UART: {}", e))?;
+
+        if len > 0 {
+            println!("UART: {}", String::from_utf8_lossy(&buf));
+        } else {
+            println!("No data");
+            break;
+        }
+    }
 
     Ok(())
 }
