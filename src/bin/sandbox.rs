@@ -186,11 +186,14 @@ async fn main() -> Result<()> {
     //     error!("Rx channel appears to be closed!");
     // });
 
-    if let Some(mut ffmpeg_stdin) = ffmpeg.stdin.take() {
-        tokio::spawn(async move {
-            tokio::io::copy(&mut stdout, &mut ffmpeg_stdin).await.ok();
-        });
-    }
+    tokio::spawn(async move {
+        tokio::io::copy(&mut stdout, &mut ffmpeg_stdin).await.ok();
+    });
+    // if let Some(mut ffmpeg_stdin) = ffmpeg.stdin.take() {
+    //     tokio::spawn(async move {
+    //         tokio::io::copy(&mut stdout, &mut ffmpeg_stdin).await.ok();
+    //     });
+    // }
 
     // let (cam_res, ffmpeg_res) = tokio::join!(cam.wait(), ffmpeg.wait());
 
