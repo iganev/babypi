@@ -63,20 +63,20 @@ async fn main() -> Result<()> {
     //     info!("Process {}: {}", RPICAM_BIN, line);
     // }
 
-    // tokio::spawn(async move {
-    //     match cam.wait().await {
-    //         Ok(code) => {
-    //             info!(
-    //                 "Child process {} exit code: {}",
-    //                 RPICAM_BIN,
-    //                 code.code().unwrap_or(-1)
-    //             );
-    //         }
-    //         Err(e) => {
-    //             error!("Child process {} error: {}", RPICAM_BIN, e);
-    //         }
-    //     }
-    // });
+    tokio::spawn(async move {
+        match cam.wait().await {
+            Ok(code) => {
+                info!(
+                    "Child process {} exit code: {}",
+                    RPICAM_BIN,
+                    code.code().unwrap_or(-1)
+                );
+            }
+            Err(e) => {
+                error!("Child process {} error: {}", RPICAM_BIN, e);
+            }
+        }
+    });
 
     //
 
@@ -192,27 +192,27 @@ async fn main() -> Result<()> {
         });
     }
 
-    let (cam_res, ffmpeg_res) = tokio::join!(cam.wait(), ffmpeg.wait());
+    // let (cam_res, ffmpeg_res) = tokio::join!(cam.wait(), ffmpeg.wait());
 
     // let _ = tokio::join!(read_task, write_task);
 
-    cam_res?;
-    ffmpeg_res?;
+    // cam_res?;
+    // ffmpeg_res?;
 
-    // tokio::spawn(async move {
-    //     match ffmpeg.wait().await {
-    //         Ok(code) => {
-    //             info!(
-    //                 "Child process {} exit code: {}",
-    //                 "ffmpeg",
-    //                 code.code().unwrap_or(-1)
-    //             );
-    //         }
-    //         Err(e) => {
-    //             error!("Child process {} error: {}", "ffmpeg", e);
-    //         }
-    //     }
-    // });
+    tokio::spawn(async move {
+        match ffmpeg.wait().await {
+            Ok(code) => {
+                info!(
+                    "Child process {} exit code: {}",
+                    "ffmpeg",
+                    code.code().unwrap_or(-1)
+                );
+            }
+            Err(e) => {
+                error!("Child process {} error: {}", "ffmpeg", e);
+            }
+        }
+    });
 
     Ok(())
 }
