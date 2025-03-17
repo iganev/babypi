@@ -47,6 +47,10 @@ toml = { version = "0", features = ["preserve_order"] }
 
 clap = { version = "4", features = ["derive"] }
 
+openh264 = "0.8.0"
+
+rppal = "0"
+
 # console = "0"
 # dialoguer = { version = "0", features = ["history"] }
 # indicatif = "0"
