@@ -63,27 +63,27 @@ async fn main() -> Result<()> {
     //     info!("Process {}: {}", RPICAM_BIN, line);
     // }
 
-    tokio::spawn(async move {
-        match cam.wait().await {
-            Ok(code) => {
-                info!(
-                    "Child process {} exit code: {}",
-                    RPICAM_BIN,
-                    code.code().unwrap_or(-1)
-                );
-            }
-            Err(e) => {
-                error!("Child process {} error: {}", RPICAM_BIN, e);
-            }
-        }
-    });
+    // tokio::spawn(async move {
+    //     match cam.wait().await {
+    //         Ok(code) => {
+    //             info!(
+    //                 "Child process {} exit code: {}",
+    //                 RPICAM_BIN,
+    //                 code.code().unwrap_or(-1)
+    //             );
+    //         }
+    //         Err(e) => {
+    //             error!("Child process {} error: {}", RPICAM_BIN, e);
+    //         }
+    //     }
+    // });
 
     //
 
     let (tx, mut rx) = mpsc::channel::<BytesMut>(100);
 
     // Spawn a task to read from first process and send to channel
-    tokio::spawn(async move {
+    let read_task = tokio::spawn(async move {
         let mut buffer = BytesMut::with_capacity(33554432);
 
         loop {
@@ -161,6 +161,7 @@ async fn main() -> Result<()> {
         .stdin(Stdio::piped())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
+        .kill_on_drop(true)
         .spawn()?;
 
     let mut ffmpeg_stdin = ffmpeg
@@ -168,7 +169,7 @@ async fn main() -> Result<()> {
         .take()
         .ok_or_else(|| anyhow!("Failed to open ffmpeg stdin"))?;
 
-    tokio::spawn(async move {
+    let write_task = tokio::spawn(async move {
         while let Some(data) = rx.recv().await {
             if ffmpeg_stdin.write_all(&data).await.is_err() {
                 break;
@@ -183,20 +184,27 @@ async fn main() -> Result<()> {
     //     });
     // }
 
-    tokio::spawn(async move {
-        match ffmpeg.wait().await {
-            Ok(code) => {
-                info!(
-                    "Child process {} exit code: {}",
-                    "ffmpeg",
-                    code.code().unwrap_or(-1)
-                );
-            }
-            Err(e) => {
-                error!("Child process {} error: {}", "ffmpeg", e);
-            }
-        }
-    });
+    let (cam_res, ffmpeg_res) = tokio::join!(cam.wait(), ffmpeg.wait());
+
+    let _ = tokio::join!(read_task, write_task);
+
+    cam_res?;
+    ffmpeg_res?;
+
+    // tokio::spawn(async move {
+    //     match ffmpeg.wait().await {
+    //         Ok(code) => {
+    //             info!(
+    //                 "Child process {} exit code: {}",
+    //                 "ffmpeg",
+    //                 code.code().unwrap_or(-1)
+    //             );
+    //         }
+    //         Err(e) => {
+    //             error!("Child process {} error: {}", "ffmpeg", e);
+    //         }
+    //     }
+    // });
 
     Ok(())
 }
