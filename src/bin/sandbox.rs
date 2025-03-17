@@ -1,9 +1,11 @@
 use std::{path::PathBuf, process::Stdio, str::FromStr, time::Duration};
 
 use babypi::rpicam::{Rpicam, RpicamCodec, RpicamDeviceMode, RPICAM_BIN};
+use bytes::{BufMut, BytesMut};
 use tokio::{
-    io::{AsyncBufReadExt, BufReader},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     process::Command,
+    sync::mpsc,
     time::sleep,
 };
 use tracing::{error, info};
@@ -41,10 +43,10 @@ async fn main() -> Result<()> {
     .spawn()
     .await?;
 
-    // let mut stdout = cam
-    //     .stdout
-    //     .take()
-    //     .ok_or_else(|| anyhow!("Failed to capture child process output for {}", RPICAM_BIN))?;
+    let mut stdout = cam
+        .stdout
+        .take()
+        .ok_or_else(|| anyhow!("Failed to capture child process output for {}", RPICAM_BIN))?;
 
     // sleep(Duration::from_secs(2)).await;
 
@@ -78,6 +80,33 @@ async fn main() -> Result<()> {
 
     //
 
+    let (tx, mut rx) = mpsc::channel::<BytesMut>(100);
+
+    // Spawn a task to read from first process and send to channel
+    tokio::spawn(async move {
+        let mut buffer = BytesMut::with_capacity(33554432);
+
+        loop {
+            // Reserve more space if needed
+            if buffer.remaining_mut() < 8192 {
+                buffer.reserve(33554432);
+            }
+
+            match stdout.read_buf(&mut buffer).await {
+                Ok(0) => break, // EOF
+                Ok(_) => {
+                    let data = buffer.split();
+                    if tx.send(data).await.is_err() {
+                        break; // Receiver dropped
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    //
+
     //ffmpeg -y \
     //   -probesize 32M \
     //   -thread_queue_size 256 \
@@ -103,7 +132,7 @@ async fn main() -> Result<()> {
         "-use_wallclock_as_timestamps",
         "1",
         "-i",
-        "live.h264", //pipe:
+        "pipe:",
         "-c:v",
         "copy",
         "-f",
@@ -131,6 +160,20 @@ async fn main() -> Result<()> {
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()?;
+
+    let mut ffmpeg_stdin = ffmpeg
+        .stdin
+        .take()
+        .ok_or_else(|| anyhow!("Failed to open ffmpeg stdin"))?;
+
+    tokio::spawn(async move {
+        while let Some(data) = rx.recv().await {
+            if ffmpeg_stdin.write_all(&data).await.is_err() {
+                break;
+            }
+        }
+        // second_stdin will be closed when dropped at the end of this scope
+    });
 
     // if let Some(mut ffmpeg_stdin) = ffmpeg.stdin.take() {
     //     tokio::spawn(async move {

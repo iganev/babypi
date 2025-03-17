@@ -366,10 +366,10 @@ impl Rpicam {
         let child = Command::new(RPICAM_BIN)
             .args(&args)
             .stdin(Stdio::piped())
-            .stdout(Stdio::from(
-                OpenOptions::new().write(true).open("live.h264")?,
-            ))
-            //.stdout(Stdio::piped())
+            // .stdout(Stdio::from(
+            //     OpenOptions::new().write(true).open("live.h264")?,
+            // ))
+            .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
             .spawn()
             .map_err(|e| anyhow!("Failed to spawn child process {}: {}", RPICAM_BIN, e))?;
