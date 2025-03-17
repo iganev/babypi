@@ -180,7 +180,7 @@ async fn main() -> Result<()> {
         while let Some(data) = rx.recv().await {
             if ffmpeg_stdin.write_all(&data).await.is_err() {
                 error!("Error writing buffer to ffmpeg stdin");
-                break;
+                // break;
             }
         }
         error!("Rx channel appears to be closed!");
