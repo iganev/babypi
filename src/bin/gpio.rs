@@ -30,7 +30,6 @@ async fn main() -> Result<()> {
 
     let mut uart = Uart::new(115_200, Parity::None, 8, 1)
         .map_err(|e| anyhow!("Failed to init UART: {}", e))?;
-    uart.set_read_mode(0, Duration::from_secs(5))?;
 
     let mut buf = [0; 255];
     let mut offset: usize = 0;
