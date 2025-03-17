@@ -80,37 +80,37 @@ async fn main() -> Result<()> {
 
     //
 
-    let (tx, mut rx) = mpsc::channel::<BytesMut>(100);
+    // let (tx, mut rx) = mpsc::channel::<BytesMut>(100);
 
     // Spawn a task to read from first process and send to channel
-    let read_task = tokio::spawn(async move {
-        let mut buffer = BytesMut::with_capacity(33554432);
+    // let read_task = tokio::spawn(async move {
+    //     let mut buffer = BytesMut::with_capacity(33554432);
 
-        loop {
-            // Reserve more space if needed
-            if buffer.remaining_mut() < 8192 {
-                buffer.reserve(33554432);
-            }
+    //     loop {
+    //         // Reserve more space if needed
+    //         if buffer.remaining_mut() < 8192 {
+    //             buffer.reserve(33554432);
+    //         }
 
-            match stdout.read_buf(&mut buffer).await {
-                Ok(0) => {
-                    error!("Reached the end of the camera output buffer!");
-                    break; // EOF
-                }
-                Ok(_) => {
-                    let data = buffer.split();
-                    if tx.send(data).await.is_err() {
-                        error!("Rx appears to have dropped...");
-                        break; // Receiver dropped
-                    }
-                }
-                Err(e) => {
-                    error!("Error reading camera output into buffer: {}", e);
-                    break;
-                }
-            }
-        }
-    });
+    //         match stdout.read_buf(&mut buffer).await {
+    //             Ok(0) => {
+    //                 error!("Reached the end of the camera output buffer!");
+    //                 break; // EOF
+    //             }
+    //             Ok(_) => {
+    //                 let data = buffer.split();
+    //                 if tx.send(data).await.is_err() {
+    //                     error!("Rx appears to have dropped...");
+    //                     break; // Receiver dropped
+    //                 }
+    //             }
+    //             Err(e) => {
+    //                 error!("Error reading camera output into buffer: {}", e);
+    //                 break;
+    //             }
+    //         }
+    //     }
+    // });
 
     //
 
@@ -176,25 +176,25 @@ async fn main() -> Result<()> {
         .take()
         .ok_or_else(|| anyhow!("Failed to open ffmpeg stdin"))?;
 
-    let write_task = tokio::spawn(async move {
-        while let Some(data) = rx.recv().await {
-            if ffmpeg_stdin.write_all(&data).await.is_err() {
-                error!("Error writing buffer to ffmpeg stdin");
-                // break;
-            }
-        }
-        error!("Rx channel appears to be closed!");
-    });
+    // let write_task = tokio::spawn(async move {
+    //     while let Some(data) = rx.recv().await {
+    //         if ffmpeg_stdin.write_all(&data).await.is_err() {
+    //             error!("Error writing buffer to ffmpeg stdin");
+    //             // break;
+    //         }
+    //     }
+    //     error!("Rx channel appears to be closed!");
+    // });
 
-    // if let Some(mut ffmpeg_stdin) = ffmpeg.stdin.take() {
-    //     tokio::spawn(async move {
-    //         tokio::io::copy(&mut stdout, &mut ffmpeg_stdin).await.ok();
-    //     });
-    // }
+    if let Some(mut ffmpeg_stdin) = ffmpeg.stdin.take() {
+        tokio::spawn(async move {
+            tokio::io::copy(&mut stdout, &mut ffmpeg_stdin).await.ok();
+        });
+    }
 
     let (cam_res, ffmpeg_res) = tokio::join!(cam.wait(), ffmpeg.wait());
 
-    let _ = tokio::join!(read_task, write_task);
+    // let _ = tokio::join!(read_task, write_task);
 
     cam_res?;
     ffmpeg_res?;

@@ -365,10 +365,7 @@ impl Rpicam {
 
         let child = Command::new(RPICAM_BIN)
             .args(&args)
-            //.stdin(Stdio::piped())
-            // .stdout(Stdio::from(
-            //     OpenOptions::new().write(true).open("live.h264")?,
-            // ))
+            .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
             .kill_on_drop(true)
