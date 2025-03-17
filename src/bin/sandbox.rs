@@ -114,7 +114,7 @@ async fn main() -> Result<()> {
 
     //
 
-    // sleep(Duration::from_secs(1)).await;
+    //sleep(Duration::from_secs(1)).await;
 
     //ffmpeg -y \
     //   -probesize 32M \
@@ -188,6 +188,7 @@ async fn main() -> Result<()> {
 
     tokio::spawn(async move {
         tokio::io::copy(&mut stdout, &mut ffmpeg_stdin).await.ok();
+        error!("Ran out of buffer to move around");
     });
     // if let Some(mut ffmpeg_stdin) = ffmpeg.stdin.take() {
     //     tokio::spawn(async move {
@@ -202,20 +203,20 @@ async fn main() -> Result<()> {
     // cam_res?;
     // ffmpeg_res?;
 
-    tokio::spawn(async move {
-        match ffmpeg.wait().await {
-            Ok(code) => {
-                info!(
-                    "Child process {} exit code: {}",
-                    "ffmpeg",
-                    code.code().unwrap_or(-1)
-                );
-            }
-            Err(e) => {
-                error!("Child process {} error: {}", "ffmpeg", e);
-            }
+    //tokio::spawn(async move {
+    match ffmpeg.wait().await {
+        Ok(code) => {
+            info!(
+                "Child process {} exit code: {}",
+                "ffmpeg",
+                code.code().unwrap_or(-1)
+            );
         }
-    });
+        Err(e) => {
+            error!("Child process {} error: {}", "ffmpeg", e);
+        }
+    }
+    //});
 
     Ok(())
 }
