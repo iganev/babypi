@@ -160,7 +160,7 @@ async fn main() -> Result<()> {
         "m3u8",
         "-segment_wrap",
         "10",
-        "\"/var/stream/%08d.ts\"",
+        "/var/stream/%08d.ts",
     ];
 
     let mut ffmpeg = Command::new("ffmpeg")
