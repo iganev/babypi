@@ -44,7 +44,7 @@ async fn main() -> Result<()> {
 
         if let Some(index) = buf.iter().position(|b| *b == '\n' as u8) {
             println!("UART: {}", String::from_utf8_lossy(&buf[0..index]));
-            buf.copy_within(index + 0.., 0);
+            buf.copy_within((index + 1).., 0);
             offset = 0;
         } else if offset == 255 {
             println!("UART: {}", String::from_utf8_lossy(&buf[0..]));
