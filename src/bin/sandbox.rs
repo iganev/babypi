@@ -93,14 +93,21 @@ async fn main() -> Result<()> {
             }
 
             match stdout.read_buf(&mut buffer).await {
-                Ok(0) => break, // EOF
+                Ok(0) => {
+                    error!("Reached the end of the camera output buffer!");
+                    break; // EOF
+                }
                 Ok(_) => {
                     let data = buffer.split();
                     if tx.send(data).await.is_err() {
+                        error!("Rx appears to have dropped...");
                         break; // Receiver dropped
                     }
                 }
-                Err(_) => break,
+                Err(e) => {
+                    error!("Error reading camera output into buffer: {}", e);
+                    break;
+                }
             }
         }
     });
@@ -172,10 +179,11 @@ async fn main() -> Result<()> {
     let write_task = tokio::spawn(async move {
         while let Some(data) = rx.recv().await {
             if ffmpeg_stdin.write_all(&data).await.is_err() {
+                error!("Error writing buffer to ffmpeg stdin");
                 break;
             }
         }
-        // second_stdin will be closed when dropped at the end of this scope
+        error!("Rx channel appears to be closed!");
     });
 
     // if let Some(mut ffmpeg_stdin) = ffmpeg.stdin.take() {
