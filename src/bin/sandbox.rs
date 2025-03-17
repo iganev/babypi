@@ -35,7 +35,7 @@ async fn main() -> Result<()> {
         Some(RpicamCodec::default()),
         None,
         Some(tuning_file),
-        Some(PathBuf::from_str("live.h264")?),
+        None,
         None,
     )
     .spawn()
