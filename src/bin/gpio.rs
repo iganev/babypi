@@ -33,17 +33,18 @@ async fn main() -> Result<()> {
     uart.set_read_mode(0, Duration::from_secs(5))?;
 
     let mut buf = [0; 255];
+    let mut offset: usize = 0;
 
     loop {
         let len = uart
-            .read(&mut buf)
+            .read(&mut buf[offset..])
             .map_err(|e| anyhow!("Failed to read UART: {}", e))?;
 
-        if len > 0 {
-            println!("UART: {}", String::from_utf8_lossy(&buf[0..len]));
-        } else {
-            println!("No data");
-            break;
+        offset += len;
+
+        if let Some(index) = buf.iter().position(|b| *b == '\n' as u8) {
+            println!("UART: {}", String::from_utf8_lossy(&buf[0..index]));
+            buf.copy_within(index + 0.., 0);
         }
     }
 
