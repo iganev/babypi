@@ -35,18 +35,18 @@ async fn main() -> Result<()> {
         Some(RpicamCodec::default()),
         None,
         Some(tuning_file),
-        None,
+        Some(PathBuf::from_str("live.h264")?),
         None,
     )
     .spawn()
     .await?;
 
-    let mut stdout = cam
-        .stdout
-        .take()
-        .ok_or_else(|| anyhow!("Failed to capture child process output for {}", RPICAM_BIN))?;
+    // let mut stdout = cam
+    //     .stdout
+    //     .take()
+    //     .ok_or_else(|| anyhow!("Failed to capture child process output for {}", RPICAM_BIN))?;
 
-    sleep(Duration::from_secs(2)).await;
+    // sleep(Duration::from_secs(2)).await;
 
     // let stderr = cam.stderr.take().ok_or_else(|| {
     //     anyhow!(
@@ -103,7 +103,7 @@ async fn main() -> Result<()> {
         "-use_wallclock_as_timestamps",
         "1",
         "-i",
-        "pipe:",
+        "live.h264", //pipe:
         "-c:v",
         "copy",
         "-f",
@@ -132,11 +132,11 @@ async fn main() -> Result<()> {
         .stderr(Stdio::inherit())
         .spawn()?;
 
-    if let Some(mut ffmpeg_stdin) = ffmpeg.stdin.take() {
-        tokio::spawn(async move {
-            tokio::io::copy(&mut stdout, &mut ffmpeg_stdin).await.ok();
-        });
-    }
+    // if let Some(mut ffmpeg_stdin) = ffmpeg.stdin.take() {
+    //     tokio::spawn(async move {
+    //         tokio::io::copy(&mut stdout, &mut ffmpeg_stdin).await.ok();
+    //     });
+    // }
 
     tokio::spawn(async move {
         match ffmpeg.wait().await {
