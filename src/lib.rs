@@ -1,8 +1,9 @@
 pub mod config;
 pub mod ffmpeg;
+pub mod gpio;
+pub mod mlx90640;
+pub mod mmwave;
 pub mod rpicam;
-
-
 
 // #[cfg(test)]
 // mod tests {
