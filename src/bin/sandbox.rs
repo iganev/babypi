@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process::Stdio, str::FromStr, time::Duration};
 
-use babypi::rpicam::{Rpicam, RpicamCodec, RpicamDeviceMode, RPICAM_BIN};
+use babypi::rpicam::{Rpicam, RpicamCodec, RPICAM_BIN};
 use bytes::{BufMut, BytesMut};
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
