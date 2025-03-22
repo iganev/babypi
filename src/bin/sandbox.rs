@@ -41,8 +41,13 @@ async fn main() -> Result<()> {
     )
     .spawn()?;
 
-    let mut stdout = cam
+    let mut rpicam_stdout = cam
         .stdout
+        .take()
+        .ok_or_else(|| anyhow!("Failed to capture child process output for {}", RPICAM_BIN))?;
+
+    let mut rpicam_stderr = cam
+        .stderr
         .take()
         .ok_or_else(|| anyhow!("Failed to capture child process output for {}", RPICAM_BIN))?;
 
@@ -105,6 +110,16 @@ async fn main() -> Result<()> {
         .take()
         .ok_or_else(|| anyhow!("Failed to open ffmpeg stdin"))?;
 
+    let mut ffmpeg_stdout = ffmpeg
+        .stdout
+        .take()
+        .ok_or_else(|| anyhow!("Failed to capture child process output for {}", FFMPEG_BIN))?;
+
+    let mut ffmpeg_stderr = ffmpeg
+        .stderr
+        .take()
+        .ok_or_else(|| anyhow!("Failed to capture child process output for {}", FFMPEG_BIN))?;
+
     // let write_task = tokio::spawn(async move {
     //     while let Some(data) = rx.recv().await {
     //         if ffmpeg_stdin.write_all(&data).await.is_err() {
@@ -116,7 +131,9 @@ async fn main() -> Result<()> {
     // });
 
     tokio::spawn(async move {
-        tokio::io::copy(&mut stdout, &mut ffmpeg_stdin).await.ok();
+        tokio::io::copy(&mut rpicam_stdout, &mut ffmpeg_stdin)
+            .await
+            .ok();
         error!("Ran out of buffer to move around");
     });
     // if let Some(mut ffmpeg_stdin) = ffmpeg.stdin.take() {
@@ -133,20 +150,76 @@ async fn main() -> Result<()> {
     // ffmpeg_res?;
 
     // waiter
-    // tokio::spawn(async move {
-    match ffmpeg.wait().await {
-        Ok(code) => {
-            info!(
-                "Child process {} exit code: {}",
-                FFMPEG_BIN,
-                code.code().unwrap_or(-1)
-            );
+    tokio::spawn(async move {
+        match ffmpeg.wait().await {
+            Ok(code) => {
+                info!(
+                    "Child process {} exit code: {}",
+                    FFMPEG_BIN,
+                    code.code().unwrap_or(-1)
+                );
+            }
+            Err(e) => {
+                error!("Child process {} error: {}", FFMPEG_BIN, e);
+            }
         }
-        Err(e) => {
-            error!("Child process {} error: {}", FFMPEG_BIN, e);
+    });
+
+    //
+
+    let (tx, mut rx) = mpsc::channel::<String>(10);
+
+    let tx_rpicam_stdout = tx.clone();
+    tokio::spawn(async move {
+        let mut reader = BufReader::new(rpicam_stderr).lines();
+
+        while let Some(line) = reader
+            .next_line()
+            .await
+            .expect("Failed to read rpicam stderr")
+        {
+            tx_rpicam_stdout
+                .send(format!("RPICAM STDERR: {}", line))
+                .await
+                .expect("Failed to send log, receiver closed");
         }
+    });
+
+    let tx_ffmpeg_stdout = tx.clone();
+    tokio::spawn(async move {
+        let mut reader = BufReader::new(ffmpeg_stdout).lines();
+
+        while let Some(line) = reader
+            .next_line()
+            .await
+            .expect("Failed to read ffmpeg stdout")
+        {
+            tx_ffmpeg_stdout
+                .send(format!("FFMPEG STDOUT: {}", line))
+                .await
+                .expect("Failed to send log, receiver closed");
+        }
+    });
+
+    let tx_ffmpeg_stderr = tx.clone();
+    tokio::spawn(async move {
+        let mut reader = BufReader::new(ffmpeg_stderr).lines();
+
+        while let Some(line) = reader
+            .next_line()
+            .await
+            .expect("Failed to read ffmpeg stderr")
+        {
+            tx_ffmpeg_stderr
+                .send(format!("FFMPEG STDERR: {}", line))
+                .await
+                .expect("Failed to send log, receiver closed");
+        }
+    });
+
+    while let Some(log) = rx.recv().await {
+        info!(log);
     }
-    // });
 
     Ok(())
 }
