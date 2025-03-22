@@ -13,6 +13,7 @@ pub static FFMPEG_DEFAULT_STREAM_SEGMENT_NAME_PATTERN: &str = "%08d.ts";
 
 pub static FFMPEG_DEFAULT_AUDIO_DEVICE: &str = "hw:1,0";
 pub static FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE: u32 = 48_000;
+pub static FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT: &str = "s16le";
 pub static FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE: &str = "128k";
 
 #[derive(Clone, Debug, Default)]
@@ -55,6 +56,8 @@ impl FromStr for FfmpegAudioFormat {
 pub struct FfmpegAudio {
     pub alsa_device: String,
     pub sample_rate: Option<u32>,
+    pub sample_format: Option<String>,
+    pub channels: Option<u8>,
     pub output_format: Option<FfmpegAudioFormat>,
     pub output_bitrate: Option<String>,
 }
@@ -64,8 +67,30 @@ impl Default for FfmpegAudio {
         Self {
             alsa_device: FFMPEG_DEFAULT_AUDIO_DEVICE.to_string(),
             sample_rate: Some(FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE),
+            sample_format: Some(FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT.to_string()),
+            channels: Some(1),
             output_format: Default::default(),
             output_bitrate: Some(FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE.to_string()),
+        }
+    }
+}
+
+impl FfmpegAudio {
+    pub fn new(
+        alsa_device: impl ToString,
+        sample_rate: Option<u32>,
+        sample_format: Option<String>,
+        channels: Option<u8>,
+        output_format: Option<FfmpegAudioFormat>,
+        output_bitrate: Option<String>,
+    ) -> Self {
+        Self {
+            alsa_device: alsa_device.to_string(),
+            sample_rate,
+            sample_format,
+            channels,
+            output_format,
+            output_bitrate,
         }
     }
 }
@@ -114,6 +139,11 @@ impl Ffmpeg {
         // auto-yes
         args.push("-y".to_string());
 
+        // suppress most output
+        args.push("-v".to_string());
+        args.push("quiet".to_string());
+        args.push("-stats".to_string());
+
         // read more input before deciding on params
         args.push("-probesize".to_string());
         args.push("32M".to_string());
@@ -147,16 +177,30 @@ impl Ffmpeg {
             args.push("-f".to_string());
             args.push("alsa".to_string());
 
-            args.push("-i".to_string());
-            args.push(audio_input.alsa_device.clone());
-
-            args.push("-r:a".to_string());
+            args.push("-sample_rate".to_string());
             args.push(
                 audio_input
                     .sample_rate
                     .unwrap_or(FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE)
                     .to_string(),
             );
+
+            args.push("-sample_fmt".to_string());
+            args.push("s16le".to_string());
+
+            args.push("-channels".to_string());
+            args.push("1".to_string());
+
+            args.push("-i".to_string());
+            args.push(audio_input.alsa_device.clone());
+
+            // args.push("-r:a".to_string());
+            // args.push(
+            //     audio_input
+            //         .sample_rate
+            //         .unwrap_or(FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE)
+            //         .to_string(),
+            // );
 
             // inject extras
             if let Some(extra_args) = self.extra_args.as_ref() {
@@ -265,7 +309,7 @@ impl Ffmpeg {
         let ffmpeg = Command::new(FFMPEG_BIN)
             .args(&args)
             .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
+            .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .kill_on_drop(true)
             .spawn()

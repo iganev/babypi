@@ -2,7 +2,10 @@ use std::{path::PathBuf, process::Stdio, str::FromStr, time::Duration};
 
 use actix_web::{web, App, HttpResponse, HttpServer};
 use babypi::{
-    ffmpeg::{Ffmpeg, FFMPEG_BIN},
+    ffmpeg::{
+        Ffmpeg, FfmpegAudio, FFMPEG_BIN, FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE,
+        FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT, FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE,
+    },
     rpicam::{Rpicam, RpicamCodec, RPICAM_BIN},
 };
 use bytes::{BufMut, BytesMut};
@@ -48,7 +51,7 @@ async fn main() -> Result<()> {
         .take()
         .ok_or_else(|| anyhow!("Failed to capture child process output for {}", RPICAM_BIN))?;
 
-    let mut rpicam_stderr = cam
+    let rpicam_stderr = cam
         .stderr
         .take()
         .ok_or_else(|| anyhow!("Failed to capture child process output for {}", RPICAM_BIN))?;
@@ -105,19 +108,28 @@ async fn main() -> Result<()> {
 
     //
 
-    let mut ffmpeg = Ffmpeg::new("/var/stream", None, None).spawn()?;
+    let ffmpeg_audio = FfmpegAudio::new(
+        "hw:3,0",
+        Some(FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE),
+        Some(FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT.to_string()),
+        Some(1),
+        Some(babypi::ffmpeg::FfmpegAudioFormat::Aac),
+        Some(FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE.to_string()),
+    );
+
+    let mut ffmpeg = Ffmpeg::new("/var/stream", Some(ffmpeg_audio), None).spawn()?;
 
     let mut ffmpeg_stdin = ffmpeg
         .stdin
         .take()
         .ok_or_else(|| anyhow!("Failed to open ffmpeg stdin"))?;
 
-    let mut ffmpeg_stdout = ffmpeg
-        .stdout
-        .take()
-        .ok_or_else(|| anyhow!("Failed to capture child process output for {}", FFMPEG_BIN))?;
+    // let mut ffmpeg_stdout = ffmpeg
+    //     .stdout
+    //     .take()
+    //     .ok_or_else(|| anyhow!("Failed to capture child process output for {}", FFMPEG_BIN))?;
 
-    let mut ffmpeg_stderr = ffmpeg
+    let ffmpeg_stderr = ffmpeg
         .stderr
         .take()
         .ok_or_else(|| anyhow!("Failed to capture child process output for {}", FFMPEG_BIN))?;
@@ -171,7 +183,7 @@ async fn main() -> Result<()> {
 
     let (tx, mut rx) = mpsc::channel::<String>(10);
 
-    let tx_rpicam_stdout = tx.clone();
+    let tx_rpicam_stderr = tx.clone();
     tokio::spawn(async move {
         let mut reader = BufReader::new(rpicam_stderr).lines();
 
@@ -180,28 +192,28 @@ async fn main() -> Result<()> {
             .await
             .expect("Failed to read rpicam stderr")
         {
-            tx_rpicam_stdout
+            tx_rpicam_stderr
                 .send(format!("RPICAM STDERR: {}", line))
                 .await
                 .expect("Failed to send log, receiver closed");
         }
     });
 
-    let tx_ffmpeg_stdout = tx.clone();
-    tokio::spawn(async move {
-        let mut reader = BufReader::new(ffmpeg_stdout).lines();
+    // let tx_ffmpeg_stdout = tx.clone();
+    // tokio::spawn(async move {
+    //     let mut reader = BufReader::new(ffmpeg_stdout).lines();
 
-        while let Some(line) = reader
-            .next_line()
-            .await
-            .expect("Failed to read ffmpeg stdout")
-        {
-            tx_ffmpeg_stdout
-                .send(format!("FFMPEG STDOUT: {}", line))
-                .await
-                .expect("Failed to send log, receiver closed");
-        }
-    });
+    //     while let Some(line) = reader
+    //         .next_line()
+    //         .await
+    //         .expect("Failed to read ffmpeg stdout")
+    //     {
+    //         tx_ffmpeg_stdout
+    //             .send(format!("FFMPEG STDOUT: {}", line))
+    //             .await
+    //             .expect("Failed to send log, receiver closed");
+    //     }
+    // });
 
     let tx_ffmpeg_stderr = tx.clone();
     tokio::spawn(async move {
