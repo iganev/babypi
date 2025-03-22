@@ -247,7 +247,7 @@ async fn serve() -> Result<()> {
             // Serve other static files
             .service(actix_files::Files::new("/stream", "/var/stream"))
     })
-    .bind("127.0.0.1:8080")?
+    .bind("0.0.0.0:8080")?
     .run();
 
     // Store handle if you need to stop the server gracefully
