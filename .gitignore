@@ -24,3 +24,6 @@ babypi.iml
 
 # Tarpaulin
 tarpaulin-report.html
+
+# Random junk I tested with
+test.h264

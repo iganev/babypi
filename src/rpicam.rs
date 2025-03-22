@@ -40,7 +40,7 @@ pub struct Rpicam {
     pub codec: Option<RpicamCodec>,
     pub mode: Option<RpicamDeviceMode>,
     pub tuning_file: Option<PathBuf>,
-    pub output_file: Option<PathBuf>,
+    // pub output_file: Option<PathBuf>,
     pub extra_args: Option<Vec<String>>,
     // pub psips_pipe: bool,
 }
@@ -52,7 +52,7 @@ impl Default for Rpicam {
             codec: Default::default(),
             mode: Default::default(),
             tuning_file: None,
-            output_file: None,
+            // output_file: None,
             extra_args: None,
             // psips_pipe: true,
         }
@@ -290,7 +290,7 @@ impl Rpicam {
         codec: Option<RpicamCodec>,
         mode: Option<RpicamDeviceMode>,
         tuning_file: Option<PathBuf>,
-        output_file: Option<PathBuf>,
+        // output_file: Option<PathBuf>,
         extra_args: Option<Vec<String>>,
         // psips: bool,
     ) -> Self {
@@ -299,7 +299,7 @@ impl Rpicam {
             codec,
             mode,
             tuning_file,
-            output_file,
+            // output_file,
             extra_args,
             // psips_pipe: psips,
         }
@@ -345,11 +345,16 @@ impl Rpicam {
         args.push("--height".to_string());
         args.push(h.to_string());
 
-        let output = self
-            .output_file
-            .as_deref()
-            .and_then(|p| p.to_str())
-            .unwrap_or("-");
+        if let Some(extra_args) = self.extra_args.as_ref() {
+            args.extend_from_slice(&extra_args);
+        }
+
+        let output = "-";
+        // let output = self
+        //     .output_file
+        //     .as_deref()
+        //     .and_then(|p| p.to_str())
+        //     .unwrap_or("-");
 
         args.push("-o".to_string());
         args.push(output.to_string());
@@ -357,26 +362,26 @@ impl Rpicam {
         args
     }
 
-    pub async fn spawn(&self) -> Result<Child> {
+    pub fn spawn(&self) -> Result<Child> {
         let args = self.build_rpicam_cmd_args();
 
-        info!("CMD ARGS: {:?}", args);
+        // info!("RPICAM-VID ARGS: {:?}", args);
 
         let child = Command::new(RPICAM_BIN)
             .args(&args)
-            .stdin(Stdio::piped())
+            .stdin(Stdio::null())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
+            .stderr(Stdio::piped())
             .kill_on_drop(true)
             .spawn()
             .map_err(|e| anyhow!("Failed to spawn child process {}: {}", RPICAM_BIN, e))?;
 
-        let Some(_pid) = child.id() else {
-            return Err(anyhow!(
-                "Failed to resolve child process PID for {}",
-                RPICAM_BIN
-            ));
-        };
+        // let Some(_pid) = child.id() else {
+        //     return Err(anyhow!(
+        //         "Failed to resolve child process PID for {}",
+        //         RPICAM_BIN
+        //     ));
+        // };
 
         // let stdout = child
         //     .stdout

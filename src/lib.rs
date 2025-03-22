@@ -3,6 +3,7 @@ pub mod ffmpeg;
 pub mod gpio;
 pub mod mlx90640;
 pub mod mmwave;
+pub mod process_control;
 pub mod rpicam;
 
 // #[cfg(test)]
