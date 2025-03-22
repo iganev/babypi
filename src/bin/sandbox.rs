@@ -1,5 +1,6 @@
 use std::{path::PathBuf, process::Stdio, str::FromStr, time::Duration};
 
+use actix_web::{web, App, HttpResponse, HttpServer};
 use babypi::{
     ffmpeg::{Ffmpeg, FFMPEG_BIN},
     rpicam::{Rpicam, RpicamCodec, RPICAM_BIN},
@@ -8,6 +9,7 @@ use bytes::{BufMut, BytesMut};
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     process::Command,
+    runtime,
     sync::mpsc,
     time::sleep,
 };
@@ -217,9 +219,65 @@ async fn main() -> Result<()> {
         }
     });
 
-    while let Some(log) = rx.recv().await {
-        info!(log);
-    }
+    // log output
+    tokio::spawn(async move {
+        while let Some(log) = rx.recv().await {
+            info!(log);
+        }
+    });
+
+    // server
+    serve().await?;
+
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to listen for ctrl+c");
+    println!("Shutdown signal received");
 
     Ok(())
+}
+
+async fn serve() -> Result<()> {
+    let server = HttpServer::new(|| {
+        App::new()
+            // Serve .m3u8 playlist files with correct MIME type
+            .route("/stream/{filename:.*\\.m3u8}", web::get().to(serve_m3u8))
+            // Serve .ts segment files with correct MIME type
+            .route("/stream/{filename:.*\\.ts}", web::get().to(serve_ts))
+            // Serve other static files
+            .service(actix_files::Files::new("/stream", "/var/stream"))
+    })
+    .bind("127.0.0.1:8080")?
+    .run();
+
+    // Store handle if you need to stop the server gracefully
+    let _server_handle = server.handle();
+
+    // Spawn the server onto the current runtime
+    tokio::spawn(async move {
+        if let Err(e) = server.await {
+            eprintln!("Server error: {}", e);
+        }
+    });
+
+    Ok(())
+}
+
+async fn serve_m3u8(path: web::Path<String>) -> HttpResponse {
+    let file_path = PathBuf::from("/var/stream").join(path.into_inner());
+    // Return the playlist with appropriate headers
+    HttpResponse::Ok()
+        .content_type("application/vnd.apple.mpegurl")
+        .insert_header(("Cache-Control", "no-cache"))
+        .insert_header(("Access-Control-Allow-Origin", "*"))
+        .body(std::fs::read(file_path).unwrap_or_default())
+}
+
+async fn serve_ts(path: web::Path<String>) -> HttpResponse {
+    let file_path = PathBuf::from("/var/stream").join(path.into_inner());
+    // Return the segment with appropriate headers
+    HttpResponse::Ok()
+        .content_type("video/MP2T")
+        .insert_header(("Cache-Control", "no-cache"))
+        .body(std::fs::read(file_path).unwrap_or_default())
 }
