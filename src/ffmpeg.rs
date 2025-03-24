@@ -35,7 +35,7 @@ impl Display for FfmpegAudioFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FfmpegAudioFormat::Aac => write!(f, "aac"),
-            FfmpegAudioFormat::Mp3 => write!(f, "mp3"),
+            FfmpegAudioFormat::Mp3 => write!(f, "libmp3lame"),
         }
     }
 }
@@ -46,15 +46,44 @@ impl FromStr for FfmpegAudioFormat {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
             "aac" => Ok(FfmpegAudioFormat::Aac),
-            "mp3" => Ok(FfmpegAudioFormat::Mp3),
+            "libmp3lame" => Ok(FfmpegAudioFormat::Mp3),
             _ => Err(anyhow!("Invalid audio format")),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub enum FfmpegAudioDeviceType {
+    #[default]
+    Alsa,
+    Pulse,
+}
+
+impl Display for FfmpegAudioDeviceType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FfmpegAudioDeviceType::Alsa => write!(f, "alsa"),
+            FfmpegAudioDeviceType::Pulse => write!(f, "pulse"),
+        }
+    }
+}
+
+impl FromStr for FfmpegAudioDeviceType {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "alsa" => Ok(FfmpegAudioDeviceType::Alsa),
+            "pulse" => Ok(FfmpegAudioDeviceType::Pulse),
+            _ => Err(anyhow!("Invalid audio device type")),
         }
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct FfmpegAudio {
-    pub alsa_device: String,
+    pub device_type: FfmpegAudioDeviceType,
+    pub device_node: String,
     pub sample_rate: Option<u32>,
     pub sample_format: Option<String>,
     pub channels: Option<u8>,
@@ -65,7 +94,8 @@ pub struct FfmpegAudio {
 impl Default for FfmpegAudio {
     fn default() -> Self {
         Self {
-            alsa_device: FFMPEG_DEFAULT_AUDIO_DEVICE.to_string(),
+            device_type: FfmpegAudioDeviceType::Alsa,
+            device_node: FFMPEG_DEFAULT_AUDIO_DEVICE.to_string(),
             sample_rate: Some(FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE),
             sample_format: Some(FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT.to_string()),
             channels: Some(1),
@@ -77,7 +107,8 @@ impl Default for FfmpegAudio {
 
 impl FfmpegAudio {
     pub fn new(
-        alsa_device: impl ToString,
+        device_type: FfmpegAudioDeviceType,
+        device_node: impl ToString,
         sample_rate: Option<u32>,
         sample_format: Option<String>,
         channels: Option<u8>,
@@ -85,7 +116,8 @@ impl FfmpegAudio {
         output_bitrate: Option<String>,
     ) -> Self {
         Self {
-            alsa_device: alsa_device.to_string(),
+            device_type,
+            device_node: device_node.to_string(),
             sample_rate,
             sample_format,
             channels,
@@ -173,9 +205,9 @@ impl Ffmpeg {
             args.push("-thread_queue_size".to_string());
             args.push("256".to_string());
 
-            // we may support pulse audio later on, possibly, maybe
+            // alsa or pulse
             args.push("-f".to_string());
-            args.push("alsa".to_string());
+            args.push(audio_input.device_type.to_string());
 
             args.push("-sample_rate".to_string());
             args.push(
@@ -192,7 +224,7 @@ impl Ffmpeg {
             args.push("1".to_string());
 
             args.push("-i".to_string());
-            args.push(audio_input.alsa_device.clone());
+            args.push(audio_input.device_node.clone());
 
             // args.push("-r:a".to_string());
             // args.push(

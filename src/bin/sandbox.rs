@@ -109,7 +109,8 @@ async fn main() -> Result<()> {
     //
 
     let ffmpeg_audio = FfmpegAudio::new(
-        "hw:3,0",
+        babypi::ffmpeg::FfmpegAudioDeviceType::Pulse,
+        "alsa_input.usb-DCMT_Technology_USB_Lavalier_Microphone_214b206000000178-00.mono-fallback", //"hw:3,0",
         Some(FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE),
         Some(FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT.to_string()),
         Some(1),
