@@ -51,6 +51,10 @@ openh264 = "0.8.0"
 
 rppal = "0"
 
+#pulseaudio = "0"
+libpulse-binding = "2" 
+libpulse-simple-binding = "2"
+
 # console = "0"
 # dialoguer = { version = "0", features = ["history"] }
 # indicatif = "0"
