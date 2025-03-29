@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use anyhow::Result;
 
 use libpulse_binding as pulse;

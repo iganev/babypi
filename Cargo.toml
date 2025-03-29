@@ -15,6 +15,7 @@ tokio_schedule = "0"
 bytes = "1.0"
 
 futures-util = "0"
+# futures = "0"
 
 nix = { version = "0", features = ["process", "signal"] }
 
