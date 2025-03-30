@@ -42,7 +42,8 @@ chrono = "0"
 
 regex = "1"
 
-image = "0"
+# image = "0"
+image = "0.24.7"
 
 toml = { version = "0", features = ["preserve_order"] }
 
@@ -55,6 +56,8 @@ rppal = "0"
 #pulseaudio = "0"
 libpulse-binding = "2" 
 libpulse-simple-binding = "2"
+
+kalosm = { version = "0", features = ["vision"] }
 
 # console = "0"
 # dialoguer = { version = "0", features = ["history"] }
