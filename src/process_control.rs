@@ -161,7 +161,6 @@ impl Drop for ProcessControl {
     fn drop(&mut self) {
         self.logger.abort();
         self.waiter.abort();
-        self.kill()
-            .expect(&format!("Failed to kill process `{}`", self.id));
+        let _ = self.kill();
     }
 }

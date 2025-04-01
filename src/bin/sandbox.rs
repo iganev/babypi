@@ -250,9 +250,11 @@ async fn main() -> Result<()> {
                 select! {
                     Ok(p) = &mut watch_cam => {
                         info!("Camera exit: {}", p);
+                        let _ = process_control_ffmpeg.stop();
                     }
                     Ok(p) = &mut watch_ffmpeg => {
                         info!("FFmpeg exit: {}", p);
+                        let _ = process_control_cam.stop();
                     }
                 }
             });
