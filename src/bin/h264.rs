@@ -6,6 +6,7 @@ use anyhow::Result;
 use image::codecs::jpeg::JpegEncoder;
 use image::codecs::png::PngEncoder;
 use image::codecs::webp::WebPEncoder;
+use image::ExtendedColorType;
 use image::{ImageEncoder, RgbImage};
 use openh264::decoder::Decoder;
 use openh264::formats::YUVSource;
@@ -54,8 +55,7 @@ async fn main() -> Result<()> {
         println!("Encoding JPEG image...");
         let encoder = JpegEncoder::new_with_quality(file, 80);
 
-        match encoder.write_image(&img, w, h, image::ColorType::Rgb8) {
-            // image::ExtendedColorType::Rgb8
+        match encoder.write_image(&img, w, h, ExtendedColorType::Rgb8) {
             // encode_image(&img) {
             Ok(_) => {
                 println!("Frame saved");
@@ -80,8 +80,7 @@ async fn main() -> Result<()> {
         println!("Encoding PNG image...");
         let encoder = PngEncoder::new(file); //new_with_quality(file, 80);
 
-        match encoder.write_image(&img, w, h, image::ColorType::Rgb8) {
-            //image::ExtendedColorType::Rgb8
+        match encoder.write_image(&img, w, h, ExtendedColorType::Rgb8) {
             Ok(_) => {
                 println!("Frame saved");
             }
@@ -105,8 +104,7 @@ async fn main() -> Result<()> {
         println!("Encoding WEBP image...");
         let encoder = WebPEncoder::new_lossless(file); //new_with_quality(file, 80);
 
-        match encoder.write_image(&img, w, h, image::ColorType::Rgb8) {
-            //image::ExtendedColorType::Rgb8
+        match encoder.write_image(&img, w, h, ExtendedColorType::Rgb8) {
             Ok(_) => {
                 println!("Frame saved");
             }
