@@ -1,6 +1,7 @@
 pub mod config;
 pub mod ffmpeg;
 pub mod gpio;
+pub mod live_stream;
 pub mod mlx90640;
 pub mod mmwave;
 pub mod process_control;

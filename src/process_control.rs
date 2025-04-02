@@ -36,6 +36,7 @@ impl Display for ProcessExit {
     }
 }
 
+#[derive(Debug)]
 pub struct ProcessControl {
     id: String,
     pid: u32,

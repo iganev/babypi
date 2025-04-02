@@ -267,7 +267,8 @@ async fn main() -> Result<()> {
     tokio::signal::ctrl_c()
         .await
         .expect("Failed to listen for ctrl+c");
-    println!("Shutdown signal received");
+
+    info!("Shutdown signal received");
 
     Ok(())
 }
