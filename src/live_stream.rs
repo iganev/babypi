@@ -169,47 +169,121 @@ impl LiveStreamState {
 
 #[derive(Debug)]
 pub struct LiveStream {
-    rpicam: Rpicam,
-    ffmpeg: Ffmpeg,
+    rpicam: Arc<Rpicam>,
+    ffmpeg: Arc<Ffmpeg>,
     state: Arc<RwLock<LiveStreamState>>,
+    watchdog: Arc<RwLock<Option<JoinHandle<()>>>>,
 }
 
 impl LiveStream {
     pub fn new(rpicam: Rpicam, ffmpeg: Ffmpeg) -> Self {
         Self {
-            rpicam,
-            ffmpeg,
+            rpicam: Arc::new(rpicam),
+            ffmpeg: Arc::new(ffmpeg),
             state: Arc::new(RwLock::new(LiveStreamState::default())),
-            // rpicam_process: None,
-            // ffmpeg_process: None,
-            // handle_pipe: None,
-            // handle_watch: None,
-            // running: Arc::new(RwLock::new(false)),
-            // retry_count: 0,
+            watchdog: Arc::new(RwLock::new(None)),
         }
     }
 
     /// Start streaming
     pub async fn start(&self) -> Result<()> {
-        loop {
-            if let Err(e) = self.start_inner().await {
-                error!(
-                    target = "live_stream",
-                    "Error while starting live stream: {}", e
-                );
+        let state_ref = self.state.clone();
+        let rpicam_ref = self.rpicam.clone();
+        let ffmpeg_ref = self.ffmpeg.clone();
 
-                let current_retry_count = self.state.write().await.retry_increment();
+        let watchdog = tokio::spawn(async move {
+            loop {
+                let state_lock = state_ref.read().await;
+                let is_running = state_lock.running;
+                let retry_count = state_lock.retry_count;
+                drop(state_lock);
 
-                if current_retry_count < LIVE_STREAM_BOOTSTRAP_RETRY {
-                    warn!(target = "live_stream", "Retrying in 3 seconds...");
-                    tokio::time::sleep(Duration::from_secs(3)).await
-                } else {
-                    break;
+                if !is_running {
+                    if retry_count < LIVE_STREAM_BOOTSTRAP_RETRY {
+                        let mut state_lock = state_ref.write().await;
+                        state_lock.retry_increment();
+
+                        if let Err(e) = state_lock.start(&rpicam_ref, &ffmpeg_ref).await {
+                            error!(
+                                target = "live_stream",
+                                "Error while starting live stream: {}", e
+                            );
+                        } else {
+                            // set up watch task
+
+                            if let Some(mut watch_cam) =
+                                state_lock.rpicam_process.as_mut().and_then(|p| p.exit_rx())
+                            {
+                                if let Some(mut watch_ffmpeg) =
+                                    state_lock.ffmpeg_process.as_mut().and_then(|p| p.exit_rx())
+                                {
+                                    let state_ref = state_ref.clone();
+                                    // let rpicam_ref = rpicam_ref.clone();
+                                    // let ffmpeg_ref = ffmpeg_ref.clone();
+
+                                    let handle_watch = tokio::spawn(async move {
+                                        tokio::select! {
+                                            Ok(p) = &mut watch_cam => {
+                                                warn!(target = "live_stream", "Process `{}` exit: {}", RPICAM_BIN, p);
+                                            }
+                                            Ok(p) = &mut watch_ffmpeg => {
+                                                warn!(target = "live_stream", "Process `{}` exit: {}", FFMPEG_BIN, p);
+                                            }
+                                        }
+
+                                        state_ref.write().await.stop().await;
+                                    });
+
+                                    state_lock.handle_watch = Some(handle_watch);
+                                } else {
+                                    error!(
+                                        target = "live_stream",
+                                        "Failed to get watch receiver for `{}`", FFMPEG_BIN
+                                    );
+                                }
+                            } else {
+                                error!(
+                                    target = "live_stream",
+                                    "Failed to get watch receiver for `{}`", RPICAM_BIN
+                                );
+                            };
+                        }
+
+                        drop(state_lock);
+                    } else {
+                        error!(target = "live_stream", "Too many retries: {}", retry_count);
+
+                        break;
+                    }
                 }
-            } else {
-                break;
+
+                tokio::time::sleep(Duration::from_secs(3)).await;
             }
-        }
+        });
+
+        let mut watchdog_lock = self.watchdog.write().await;
+        *watchdog_lock = Some(watchdog);
+        drop(watchdog_lock);
+
+        // loop {
+        //     if let Err(e) = self.start_inner().await {
+        //         error!(
+        //             target = "live_stream",
+        //             "Error while starting live stream: {}", e
+        //         );
+
+        //         let current_retry_count = self.state.write().await.retry_increment();
+
+        //         if current_retry_count < LIVE_STREAM_BOOTSTRAP_RETRY {
+        //             warn!(target = "live_stream", "Retrying in 3 seconds...");
+        //             tokio::time::sleep(Duration::from_secs(3)).await
+        //         } else {
+        //             break;
+        //         }
+        //     } else {
+        //         break;
+        //     }
+        // }
 
         Ok(())
     }
@@ -333,7 +407,13 @@ impl LiveStream {
 
     /// Stop streaming and reset state
     pub async fn stop(&self) {
-        self.state.write().await.stop().await;
+        let mut watchdog_lock = self.watchdog.write().await;
+        if let Some(watchdog) = watchdog_lock.take() {
+            watchdog.abort();
+        }
+        drop(watchdog_lock);
+
+        self.state.write().await.reset().await;
     }
 
     /// Are we live?
