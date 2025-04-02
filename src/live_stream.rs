@@ -25,21 +25,100 @@ struct LiveStreamState {
 }
 
 impl LiveStreamState {
-    pub fn update(
-        &mut self,
-        rpicam_process: Option<ProcessControl>,
-        ffmpeg_process: Option<ProcessControl>,
-        handle_pipe: Option<JoinHandle<()>>,
-        handle_watch: Option<JoinHandle<()>>,
-        running: bool,
-        // retry_count: u8,
-    ) {
-        self.rpicam_process = rpicam_process;
-        self.ffmpeg_process = ffmpeg_process;
-        self.handle_pipe = handle_pipe;
-        self.handle_watch = handle_watch;
-        self.running = running;
-        // self.retry_count = retry_count;
+    // pub fn update(
+    //     &mut self,
+    //     rpicam_process: Option<ProcessControl>,
+    //     ffmpeg_process: Option<ProcessControl>,
+    //     handle_pipe: Option<JoinHandle<()>>,
+    //     handle_watch: Option<JoinHandle<()>>,
+    //     running: bool,
+    //     // retry_count: u8,
+    // ) {
+    //     self.rpicam_process = rpicam_process;
+    //     self.ffmpeg_process = ffmpeg_process;
+    //     self.handle_pipe = handle_pipe;
+    //     self.handle_watch = handle_watch;
+    //     self.running = running;
+    //     // self.retry_count = retry_count;
+    // }
+
+    pub async fn start(&mut self, rpicam: &Rpicam, ffmpeg: &Ffmpeg) -> Result<()> {
+        let mut rpicam_child = rpicam.spawn()?;
+        let mut rpicam_stdout = rpicam_child.stdout.take().ok_or_else(|| {
+            anyhow!(
+                "Failed to capture child process output for `{}`",
+                RPICAM_BIN
+            )
+        })?;
+        let rpicam_process = ProcessControl::new(RPICAM_BIN, rpicam_child)?;
+
+        info!(
+            target = "live_stream",
+            "Bootstrapped `{}` for live streaming", RPICAM_BIN
+        );
+
+        let mut ffmpeg_child = ffmpeg.spawn()?;
+        let mut ffmpeg_stdin = ffmpeg_child
+            .stdin
+            .take()
+            .ok_or_else(|| anyhow!("Failed to open child process input for `{}`", FFMPEG_BIN))?;
+        let ffmpeg_process = ProcessControl::new(FFMPEG_BIN, ffmpeg_child)?;
+
+        info!(
+            target = "live_stream",
+            "Bootstrapped `{}` for live streaming", FFMPEG_BIN
+        );
+
+        let handle_pipe = tokio::spawn(async move {
+            tokio::io::copy(&mut rpicam_stdout, &mut ffmpeg_stdin)
+                .await
+                .ok();
+            error!(target = "live_stream", "Ran out of buffer to move around");
+        });
+
+        info!(target = "live_stream", "Connected IO pipe");
+
+        // let state_ref = self.state.clone();
+
+        // let handle_watch = if let Some(mut watch_cam) = rpicam_process.exit_rx() {
+        //     if let Some(mut watch_ffmpeg) = ffmpeg_process.exit_rx() {
+        //         Ok(tokio::spawn(async move {
+        //             tokio::select! {
+        //                 Ok(p) = &mut watch_cam => {
+        //                     warn!(target = "live_stream", "Process `{}` exit: {}", RPICAM_BIN, p);
+        //                     // let _ = process_control_ffmpeg.stop();
+        //                 }
+        //                 Ok(p) = &mut watch_ffmpeg => {
+        //                     warn!(target = "live_stream", "Process `{}` exit: {}", FFMPEG_BIN, p);
+        //                     // let _ = process_control_cam.stop();
+        //                 }
+        //             }
+
+        //             state_ref.write().await.stop().await;
+        //         }))
+        //     } else {
+        //         Err(anyhow!("Failed to get watch receiver for `{}`", FFMPEG_BIN))
+        //     }
+        // } else {
+        //     Err(anyhow!("Failed to get watch receiver for `{}`", RPICAM_BIN))
+        // }?;
+
+        // info!(target = "live_stream", "Setup watch task");
+
+        // self.state.write().await.update(
+        //     Some(rpicam_process),
+        //     Some(ffmpeg_process),
+        //     Some(handle_pipe),
+        //     Some(handle_watch),
+        //     true,
+        //     // 0,
+        // );
+
+        self.rpicam_process = Some(rpicam_process);
+        self.ffmpeg_process = Some(ffmpeg_process);
+        self.handle_pipe = Some(handle_pipe);
+
+        Ok(())
     }
 
     pub async fn reset(&mut self) {
@@ -92,16 +171,7 @@ impl LiveStreamState {
 pub struct LiveStream {
     rpicam: Rpicam,
     ffmpeg: Ffmpeg,
-
     state: Arc<RwLock<LiveStreamState>>,
-    // rpicam_process: Option<ProcessControl>,
-    // ffmpeg_process: Option<ProcessControl>,
-
-    // handle_pipe: Option<JoinHandle<()>>,
-    // handle_watch: Option<JoinHandle<()>>,
-
-    // running: Arc<RwLock<bool>>,
-    // retry_count: u8,
 }
 
 impl LiveStream {
@@ -145,58 +215,106 @@ impl LiveStream {
     }
 
     async fn start_inner(&self) -> Result<()> {
-        let mut rpicam_child = self.rpicam.spawn()?;
-        let mut rpicam_stdout = rpicam_child.stdout.take().ok_or_else(|| {
-            anyhow!(
-                "Failed to capture child process output for `{}`",
-                RPICAM_BIN
-            )
-        })?;
-        let mut rpicam_process = ProcessControl::new(RPICAM_BIN, rpicam_child)?;
+        // let mut rpicam_child = self.rpicam.spawn()?;
+        // let mut rpicam_stdout = rpicam_child.stdout.take().ok_or_else(|| {
+        //     anyhow!(
+        //         "Failed to capture child process output for `{}`",
+        //         RPICAM_BIN
+        //     )
+        // })?;
+        // let mut rpicam_process = ProcessControl::new(RPICAM_BIN, rpicam_child)?;
 
-        info!(
-            target = "live_stream",
-            "Bootstrapped `{}` for live streaming", RPICAM_BIN
-        );
+        // info!(
+        //     target = "live_stream",
+        //     "Bootstrapped `{}` for live streaming", RPICAM_BIN
+        // );
 
-        let mut ffmpeg_child = self.ffmpeg.spawn()?;
-        let mut ffmpeg_stdin = ffmpeg_child
-            .stdin
-            .take()
-            .ok_or_else(|| anyhow!("Failed to open child process input for `{}`", FFMPEG_BIN))?;
-        let mut ffmpeg_process = ProcessControl::new(FFMPEG_BIN, ffmpeg_child)?;
+        // let mut ffmpeg_child = self.ffmpeg.spawn()?;
+        // let mut ffmpeg_stdin = ffmpeg_child
+        //     .stdin
+        //     .take()
+        //     .ok_or_else(|| anyhow!("Failed to open child process input for `{}`", FFMPEG_BIN))?;
+        // let mut ffmpeg_process = ProcessControl::new(FFMPEG_BIN, ffmpeg_child)?;
 
-        info!(
-            target = "live_stream",
-            "Bootstrapped `{}` for live streaming", FFMPEG_BIN
-        );
+        // info!(
+        //     target = "live_stream",
+        //     "Bootstrapped `{}` for live streaming", FFMPEG_BIN
+        // );
 
-        let handle_pipe = tokio::spawn(async move {
-            tokio::io::copy(&mut rpicam_stdout, &mut ffmpeg_stdin)
-                .await
-                .ok();
-            error!(target = "live_stream", "Ran out of buffer to move around");
-        });
+        // let handle_pipe = tokio::spawn(async move {
+        //     tokio::io::copy(&mut rpicam_stdout, &mut ffmpeg_stdin)
+        //         .await
+        //         .ok();
+        //     error!(target = "live_stream", "Ran out of buffer to move around");
+        // });
 
-        info!(target = "live_stream", "Connected IO pipe");
+        // info!(target = "live_stream", "Connected IO pipe");
 
-        let state_ref = self.state.clone();
+        // let state_ref = self.state.clone();
 
-        let handle_watch = if let Some(mut watch_cam) = rpicam_process.exit_rx() {
-            if let Some(mut watch_ffmpeg) = ffmpeg_process.exit_rx() {
+        // let handle_watch = if let Some(mut watch_cam) = rpicam_process.exit_rx() {
+        //     if let Some(mut watch_ffmpeg) = ffmpeg_process.exit_rx() {
+        //         Ok(tokio::spawn(async move {
+        //             tokio::select! {
+        //                 Ok(p) = &mut watch_cam => {
+        //                     warn!(target = "live_stream", "Process `{}` exit: {}", RPICAM_BIN, p);
+        //                     // let _ = process_control_ffmpeg.stop();
+        //                 }
+        //                 Ok(p) = &mut watch_ffmpeg => {
+        //                     warn!(target = "live_stream", "Process `{}` exit: {}", FFMPEG_BIN, p);
+        //                     // let _ = process_control_cam.stop();
+        //                 }
+        //             }
+
+        //             state_ref.write().await.stop().await;
+        //         }))
+        //     } else {
+        //         Err(anyhow!("Failed to get watch receiver for `{}`", FFMPEG_BIN))
+        //     }
+        // } else {
+        //     Err(anyhow!("Failed to get watch receiver for `{}`", RPICAM_BIN))
+        // }?;
+
+        // info!(target = "live_stream", "Setup watch task");
+
+        // self.state.write().await.update(
+        //     Some(rpicam_process),
+        //     Some(ffmpeg_process),
+        //     Some(handle_pipe),
+        //     Some(handle_watch),
+        //     true,
+        //     // 0,
+        // );
+
+        let mut state_lock = self.state.write().await;
+
+        state_lock.start(&self.rpicam, &self.ffmpeg).await?;
+
+        let handle_watch = if let Some(mut watch_cam) =
+            state_lock.rpicam_process.as_mut().and_then(|p| p.exit_rx())
+        {
+            if let Some(mut watch_ffmpeg) =
+                state_lock.ffmpeg_process.as_mut().and_then(|p| p.exit_rx())
+            {
+                let state_ref = self.state.clone();
+                let rpicam = self.rpicam.clone();
+                let ffmpeg = self.ffmpeg.clone();
+
                 Ok(tokio::spawn(async move {
                     tokio::select! {
                         Ok(p) = &mut watch_cam => {
                             warn!(target = "live_stream", "Process `{}` exit: {}", RPICAM_BIN, p);
-                            // let _ = process_control_ffmpeg.stop();
                         }
                         Ok(p) = &mut watch_ffmpeg => {
                             warn!(target = "live_stream", "Process `{}` exit: {}", FFMPEG_BIN, p);
-                            // let _ = process_control_cam.stop();
                         }
                     }
 
                     state_ref.write().await.stop().await;
+
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+
+                    let _ = state_ref.write().await.start(&rpicam, &ffmpeg).await;
                 }))
             } else {
                 Err(anyhow!("Failed to get watch receiver for `{}`", FFMPEG_BIN))
@@ -205,16 +323,10 @@ impl LiveStream {
             Err(anyhow!("Failed to get watch receiver for `{}`", RPICAM_BIN))
         }?;
 
-        info!(target = "live_stream", "Setup watch task");
+        state_lock.handle_watch = Some(handle_watch);
+        drop(state_lock);
 
-        self.state.write().await.update(
-            Some(rpicam_process),
-            Some(ffmpeg_process),
-            Some(handle_pipe),
-            Some(handle_watch),
-            true,
-            // 0,
-        );
+        info!(target = "live_stream", "Setup watch task");
 
         Ok(())
     }
