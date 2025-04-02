@@ -101,6 +101,8 @@ impl LiveStream {
 
         info!(target = "live_stream", "Connected IO pipe");
 
+        let running_ref = self.running.clone();
+
         let handle_watch = if let Some(mut watch_cam) = rpicam_process.exit_rx() {
             if let Some(mut watch_ffmpeg) = ffmpeg_process.exit_rx() {
                 Ok(tokio::spawn(async move {
@@ -114,6 +116,10 @@ impl LiveStream {
                             // let _ = process_control_cam.stop();
                         }
                     }
+
+                    let mut running_write_lock = running_ref.write().await;
+                    *running_write_lock = false;
+                    drop(running_write_lock);
                 }))
             } else {
                 Err(anyhow!("Failed to get watch receiver for `{}`", FFMPEG_BIN))
