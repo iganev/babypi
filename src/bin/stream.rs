@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr, time::Duration};
 
 use babypi::{
     ffmpeg::{
@@ -46,13 +46,26 @@ async fn main() -> Result<()> {
 
     live_stream.start().await?;
 
-    tokio::signal::ctrl_c()
-        .await
-        .expect("Failed to listen for ctrl+c");
+    loop {
+        tokio::select! {
+            _ = tokio::time::sleep(Duration::from_secs(1)) => {
+                info!("State: {}", live_stream.is_running().await);
+            }
+            _ = tokio::signal::ctrl_c() => {
+                info!("Shutdown signal received");
+                live_stream.stop().await;
+                break;
+            }
+        }
+    }
 
-    info!("Shutdown signal received");
+    // tokio::signal::ctrl_c()
+    //     .await
+    //     .expect("Failed to listen for ctrl+c");
 
-    live_stream.stop().await;
+    // info!("Shutdown signal received");
+
+    // live_stream.stop().await;
 
     info!("Bye");
 
