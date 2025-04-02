@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
 
     let ffmpeg = Ffmpeg::new("/var/stream", Some(ffmpeg_audio), None);
 
-    let mut live_stream = LiveStream::new(cam, ffmpeg);
+    let live_stream = LiveStream::new(cam, ffmpeg);
 
     live_stream.start().await?;
 

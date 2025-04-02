@@ -12,19 +12,96 @@ use tracing::{error, info, warn};
 
 pub const LIVE_STREAM_BOOTSTRAP_RETRY: u8 = 10;
 
-#[derive(Debug)]
-pub struct LiveStream {
-    rpicam: Rpicam,
-    ffmpeg: Ffmpeg,
-
+#[derive(Debug, Default)]
+struct LiveStreamState {
     rpicam_process: Option<ProcessControl>,
     ffmpeg_process: Option<ProcessControl>,
 
     handle_pipe: Option<JoinHandle<()>>,
     handle_watch: Option<JoinHandle<()>>,
 
-    running: Arc<RwLock<bool>>,
+    running: bool,
     retry_count: u8,
+}
+
+impl LiveStreamState {
+    pub fn update(
+        &mut self,
+        rpicam_process: Option<ProcessControl>,
+        ffmpeg_process: Option<ProcessControl>,
+        handle_pipe: Option<JoinHandle<()>>,
+        handle_watch: Option<JoinHandle<()>>,
+        running: bool,
+        // retry_count: u8,
+    ) {
+        self.rpicam_process = rpicam_process;
+        self.ffmpeg_process = ffmpeg_process;
+        self.handle_pipe = handle_pipe;
+        self.handle_watch = handle_watch;
+        self.running = running;
+        // self.retry_count = retry_count;
+    }
+
+    pub async fn reset(&mut self) {
+        self.stop().await;
+        self.retry_count = 0;
+    }
+
+    pub async fn stop(&mut self) {
+        self.running = false;
+
+        if let Some(handle_pipe) = self.handle_pipe.take() {
+            handle_pipe.abort();
+        }
+
+        if let Some(handle_watch) = self.handle_watch.take() {
+            handle_watch.abort();
+        }
+
+        if let Some(ffmpeg_process) = self.ffmpeg_process.take() {
+            if let Err(e) = ffmpeg_process.stop() {
+                error!(
+                    target = "live_stream",
+                    "Error while stopping `{}`: {}", FFMPEG_BIN, e
+                );
+            }
+        }
+
+        if let Some(rpicam_process) = self.rpicam_process.take() {
+            if let Err(e) = rpicam_process.stop() {
+                error!(
+                    target = "live_stream",
+                    "Error while stopping `{}`: {}", RPICAM_BIN, e
+                );
+            }
+        }
+    }
+
+    pub fn retry_increment(&mut self) -> u8 {
+        self.retry_count += 1;
+
+        self.retry_count
+    }
+
+    pub fn is_running(&self) -> bool {
+        self.running
+    }
+}
+
+#[derive(Debug)]
+pub struct LiveStream {
+    rpicam: Rpicam,
+    ffmpeg: Ffmpeg,
+
+    state: Arc<RwLock<LiveStreamState>>,
+    // rpicam_process: Option<ProcessControl>,
+    // ffmpeg_process: Option<ProcessControl>,
+
+    // handle_pipe: Option<JoinHandle<()>>,
+    // handle_watch: Option<JoinHandle<()>>,
+
+    // running: Arc<RwLock<bool>>,
+    // retry_count: u8,
 }
 
 impl LiveStream {
@@ -32,26 +109,28 @@ impl LiveStream {
         Self {
             rpicam,
             ffmpeg,
-            rpicam_process: None,
-            ffmpeg_process: None,
-            handle_pipe: None,
-            handle_watch: None,
-            running: Arc::new(RwLock::new(false)),
-            retry_count: 0,
+            state: Arc::new(RwLock::new(LiveStreamState::default())),
+            // rpicam_process: None,
+            // ffmpeg_process: None,
+            // handle_pipe: None,
+            // handle_watch: None,
+            // running: Arc::new(RwLock::new(false)),
+            // retry_count: 0,
         }
     }
 
     /// Start streaming
-    pub async fn start(&mut self) -> Result<()> {
+    pub async fn start(&self) -> Result<()> {
         loop {
             if let Err(e) = self.start_inner().await {
                 error!(
                     target = "live_stream",
                     "Error while starting live stream: {}", e
                 );
-                self.retry_count += 1;
 
-                if self.retry_count < LIVE_STREAM_BOOTSTRAP_RETRY {
+                let current_retry_count = self.state.write().await.retry_increment();
+
+                if current_retry_count < LIVE_STREAM_BOOTSTRAP_RETRY {
                     warn!(target = "live_stream", "Retrying in 3 seconds...");
                     tokio::time::sleep(Duration::from_secs(3)).await
                 } else {
@@ -65,7 +144,7 @@ impl LiveStream {
         Ok(())
     }
 
-    async fn start_inner(&mut self) -> Result<()> {
+    async fn start_inner(&self) -> Result<()> {
         let mut rpicam_child = self.rpicam.spawn()?;
         let mut rpicam_stdout = rpicam_child.stdout.take().ok_or_else(|| {
             anyhow!(
@@ -101,7 +180,7 @@ impl LiveStream {
 
         info!(target = "live_stream", "Connected IO pipe");
 
-        let running_ref = self.running.clone();
+        let state_ref = self.state.clone();
 
         let handle_watch = if let Some(mut watch_cam) = rpicam_process.exit_rx() {
             if let Some(mut watch_ffmpeg) = ffmpeg_process.exit_rx() {
@@ -117,9 +196,7 @@ impl LiveStream {
                         }
                     }
 
-                    let mut running_write_lock = running_ref.write().await;
-                    *running_write_lock = false;
-                    drop(running_write_lock);
+                    state_ref.write().await.stop().await;
                 }))
             } else {
                 Err(anyhow!("Failed to get watch receiver for `{}`", FFMPEG_BIN))
@@ -130,57 +207,25 @@ impl LiveStream {
 
         info!(target = "live_stream", "Setup watch task");
 
-        self.rpicam_process = Some(rpicam_process);
-        self.ffmpeg_process = Some(ffmpeg_process);
-        self.handle_pipe = Some(handle_pipe);
-        self.handle_watch = Some(handle_watch);
-
-        let mut running_write_lock = self.running.write().await;
-        *running_write_lock = true;
-        drop(running_write_lock);
+        self.state.write().await.update(
+            Some(rpicam_process),
+            Some(ffmpeg_process),
+            Some(handle_pipe),
+            Some(handle_watch),
+            true,
+            // 0,
+        );
 
         Ok(())
     }
 
     /// Stop streaming and reset state
-    pub async fn stop(&mut self) {
-        self.retry_count = 0;
-        let mut running_write_lock = self.running.write().await;
-        *running_write_lock = false;
-        drop(running_write_lock);
-
-        if let Some(handle_pipe) = self.handle_pipe.take() {
-            handle_pipe.abort();
-        }
-
-        if let Some(handle_watch) = self.handle_watch.take() {
-            handle_watch.abort();
-        }
-
-        if let Some(ffmpeg_process) = self.ffmpeg_process.take() {
-            if let Err(e) = ffmpeg_process.stop() {
-                error!(
-                    target = "live_stream",
-                    "Error while stopping `{}`: {}", FFMPEG_BIN, e
-                );
-            }
-        }
-
-        if let Some(rpicam_process) = self.rpicam_process.take() {
-            if let Err(e) = rpicam_process.stop() {
-                error!(
-                    target = "live_stream",
-                    "Error while stopping `{}`: {}", RPICAM_BIN, e
-                );
-            }
-        }
+    pub async fn stop(&self) {
+        self.state.write().await.stop().await;
     }
 
     /// Are we live?
     pub async fn is_running(&self) -> bool {
-        let lock = self.running.read().await;
-        let val = *lock;
-        drop(lock);
-        val
+        self.state.read().await.is_running()
     }
 }
