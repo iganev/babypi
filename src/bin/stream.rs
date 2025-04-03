@@ -44,7 +44,7 @@ async fn main() -> Result<()> {
 
     let live_stream = LiveStream::new(cam, ffmpeg);
 
-    live_stream.start().await?;
+    live_stream.start().await;
 
     loop {
         tokio::select! {
