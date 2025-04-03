@@ -160,25 +160,14 @@ impl LiveStream {
                         } else {
                             // set up watch task
 
-                            let mut watch_rpicam = if let Some(rpicam_process) =
-                                state_lock.rpicam_process.as_mut()
+                            let mut watch_rpicam = if let Some(watch_rpicam) =
+                                state_lock.rpicam_process.as_mut().and_then(|p| p.exit_rx())
                             {
-                                if let Some(watch_rpicam) = rpicam_process.exit_rx() {
-                                    watch_rpicam
-                                } else {
-                                    error!(
-                                        target = "live_stream",
-                                        "Failed to get watch receiver for `{}`", RPICAM_BIN
-                                    );
-
-                                    drop(state_lock);
-
-                                    continue;
-                                }
+                                watch_rpicam
                             } else {
                                 error!(
                                     target = "live_stream",
-                                    "Failed to get process control reference for `{}`", RPICAM_BIN
+                                    "Failed to get watch receiver for `{}`", RPICAM_BIN
                                 );
 
                                 drop(state_lock);
@@ -186,25 +175,14 @@ impl LiveStream {
                                 continue;
                             };
 
-                            let mut watch_ffmpeg = if let Some(ffmpeg_process) =
-                                state_lock.ffmpeg_process.as_mut()
+                            let mut watch_ffmpeg = if let Some(watch_ffmpeg) =
+                                state_lock.ffmpeg_process.as_mut().and_then(|p| p.exit_rx())
                             {
-                                if let Some(watch_ffmpeg) = ffmpeg_process.exit_rx() {
-                                    watch_ffmpeg
-                                } else {
-                                    error!(
-                                        target = "live_stream",
-                                        "Failed to get watch receiver for `{}`", FFMPEG_BIN
-                                    );
-
-                                    drop(state_lock);
-
-                                    continue;
-                                }
+                                watch_ffmpeg
                             } else {
                                 error!(
                                     target = "live_stream",
-                                    "Failed to get process control reference for `{}`", FFMPEG_BIN
+                                    "Failed to get watch receiver for `{}`", FFMPEG_BIN
                                 );
 
                                 drop(state_lock);

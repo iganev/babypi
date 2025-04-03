@@ -166,8 +166,8 @@ impl Drop for ProcessControl {
             "Process control dropped, terminating process `{}`", self.id
         );
 
-        // self.logger.abort();
-        // self.waiter.abort();
-        // let _ = self.kill();
+        self.logger.abort();
+        self.waiter.abort();
+        let _ = self.kill();
     }
 }
