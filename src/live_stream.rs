@@ -158,57 +158,91 @@ impl LiveStream {
                         } else {
                             // set up watch task
 
-                            if let Some(mut watch_cam) =
-                                state_lock.rpicam_process.as_mut().and_then(|p| p.exit_rx())
+                            let mut watch_rpicam = if let Some(rpicam_process) =
+                                state_lock.rpicam_process.as_mut()
                             {
-                                if let Some(mut watch_ffmpeg) =
-                                    state_lock.ffmpeg_process.as_mut().and_then(|p| p.exit_rx())
-                                {
-                                    let state_ref_watch = state_ref.clone();
+                                if let Some(watch_rpicam) = rpicam_process.exit_rx() {
+                                    watch_rpicam
+                                } else {
+                                    error!(
+                                        target = "live_stream",
+                                        "Failed to get watch receiver for `{}`", RPICAM_BIN
+                                    );
 
-                                    let handle_watch = tokio::spawn(async move {
-                                        tokio::select! {
-                                            r = &mut watch_cam => {
-                                                match r {
-                                                    Ok(exit_code) => {
-                                                        warn!(target = "live_stream", "Process `{}` exit: {}", RPICAM_BIN, exit_code);
-                                                    }
-                                                    Err(e) => {
-                                                        error!(target = "live_stream", "Process `{}` watch error: {}", RPICAM_BIN, e);
-                                                    }
-                                                }
-                                            }
-                                            r = &mut watch_ffmpeg => {
-                                                match r {
-                                                    Ok(exit_code) => {
-                                                        warn!(target = "live_stream", "Process `{}` exit: {}", FFMPEG_BIN, exit_code);
-                                                    }
-                                                    Err(e) => {
-                                                        error!(target = "live_stream", "Process `{}` watch error: {}", FFMPEG_BIN, e);
-                                                    }
-                                                }
-                                            }
-                                            else => {
-                                                error!(target = "live_stream", "Both `{}` and `{}` seem to have exited prematurely...", RPICAM_BIN, FFMPEG_BIN);
-                                            }
-                                        }
+                                    drop(state_lock);
 
-                                        state_ref_watch.write().await.stop().await;
-                                    });
+                                    continue;
+                                }
+                            } else {
+                                error!(
+                                    target = "live_stream",
+                                    "Failed to get process control reference for `{}`", RPICAM_BIN
+                                );
 
-                                    state_lock.handle_watch = Some(handle_watch);
+                                drop(state_lock);
+
+                                continue;
+                            };
+
+                            let mut watch_ffmpeg = if let Some(ffmpeg_process) =
+                                state_lock.ffmpeg_process.as_mut()
+                            {
+                                if let Some(watch_ffmpeg) = ffmpeg_process.exit_rx() {
+                                    watch_ffmpeg
                                 } else {
                                     error!(
                                         target = "live_stream",
                                         "Failed to get watch receiver for `{}`", FFMPEG_BIN
                                     );
+
+                                    drop(state_lock);
+
+                                    continue;
                                 }
                             } else {
                                 error!(
                                     target = "live_stream",
-                                    "Failed to get watch receiver for `{}`", RPICAM_BIN
+                                    "Failed to get process control reference for `{}`", FFMPEG_BIN
                                 );
+
+                                drop(state_lock);
+
+                                continue;
                             };
+
+                            let state_ref_watch = state_ref.clone();
+
+                            let handle_watch = tokio::spawn(async move {
+                                tokio::select! {
+                                    r = &mut watch_rpicam => {
+                                        match r {
+                                            Ok(exit_code) => {
+                                                warn!(target = "live_stream", "Process `{}` exit: {}", RPICAM_BIN, exit_code);
+                                            }
+                                            Err(e) => {
+                                                error!(target = "live_stream", "Process `{}` watch error: {}", RPICAM_BIN, e);
+                                            }
+                                        }
+                                    }
+                                    r = &mut watch_ffmpeg => {
+                                        match r {
+                                            Ok(exit_code) => {
+                                                warn!(target = "live_stream", "Process `{}` exit: {}", FFMPEG_BIN, exit_code);
+                                            }
+                                            Err(e) => {
+                                                error!(target = "live_stream", "Process `{}` watch error: {}", FFMPEG_BIN, e);
+                                            }
+                                        }
+                                    }
+                                    else => {
+                                        error!(target = "live_stream", "Both `{}` and `{}` seem to have exited prematurely...", RPICAM_BIN, FFMPEG_BIN);
+                                    }
+                                }
+
+                                state_ref_watch.write().await.stop().await;
+                            });
+
+                            state_lock.handle_watch = Some(handle_watch);
                         }
 
                         drop(state_lock);
