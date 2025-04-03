@@ -12,6 +12,7 @@ use tokio::sync::oneshot::Receiver;
 use tokio::task::JoinHandle;
 use tracing::error;
 use tracing::info;
+use tracing::warn;
 
 #[derive(Clone, Debug)]
 pub struct ProcessExit {
@@ -160,6 +161,11 @@ impl ProcessControl {
 
 impl Drop for ProcessControl {
     fn drop(&mut self) {
+        warn!(
+            target = "process_control",
+            "Process control dropped, terminating process `{}`", self.id
+        );
+
         self.logger.abort();
         self.waiter.abort();
         let _ = self.kill();

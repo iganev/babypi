@@ -174,7 +174,7 @@ impl Ffmpeg {
         // suppress most output
         // args.push("-v".to_string());
         // args.push("quiet".to_string());
-        args.push("-stats".to_string());
+        // args.push("-stats".to_string());
 
         // read more input before deciding on params
         args.push("-probesize".to_string());
