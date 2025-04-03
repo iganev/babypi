@@ -65,6 +65,8 @@ impl LiveStreamState {
         self.ffmpeg_process = Some(ffmpeg_process);
         self.handle_pipe = Some(handle_pipe);
 
+        self.running = true;
+
         Ok(())
     }
 
