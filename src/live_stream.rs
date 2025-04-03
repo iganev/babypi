@@ -161,22 +161,32 @@ impl LiveStream {
                             if let Some(mut watch_cam) =
                                 state_lock.rpicam_process.as_mut().and_then(|p| p.exit_rx())
                             {
-                                warn!("{:?}", watch_cam);
-
                                 if let Some(mut watch_ffmpeg) =
                                     state_lock.ffmpeg_process.as_mut().and_then(|p| p.exit_rx())
                                 {
-                                    warn!("{:?}", watch_ffmpeg);
-
                                     let state_ref_watch = state_ref.clone();
 
                                     let handle_watch = tokio::spawn(async move {
                                         tokio::select! {
-                                            Ok(p) = &mut watch_cam => {
-                                                warn!(target = "live_stream", "Process `{}` exit: {}", RPICAM_BIN, p);
+                                            r = &mut watch_cam => {
+                                                match r {
+                                                    Ok(exit_code) => {
+                                                        warn!(target = "live_stream", "Process `{}` exit: {}", RPICAM_BIN, exit_code);
+                                                    }
+                                                    Err(e) => {
+                                                        error!(target = "live_stream", "Process `{}` watch error: {}", RPICAM_BIN, e);
+                                                    }
+                                                }
                                             }
-                                            Ok(p) = &mut watch_ffmpeg => {
-                                                warn!(target = "live_stream", "Process `{}` exit: {}", FFMPEG_BIN, p);
+                                            r = &mut watch_ffmpeg => {
+                                                match r {
+                                                    Ok(exit_code) => {
+                                                        warn!(target = "live_stream", "Process `{}` exit: {}", FFMPEG_BIN, exit_code);
+                                                    }
+                                                    Err(e) => {
+                                                        error!(target = "live_stream", "Process `{}` watch error: {}", FFMPEG_BIN, e);
+                                                    }
+                                                }
                                             }
                                             else => {
                                                 error!(target = "live_stream", "Both `{}` and `{}` seem to have exited prematurely...", RPICAM_BIN, FFMPEG_BIN);
