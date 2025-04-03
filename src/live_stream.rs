@@ -25,23 +25,6 @@ struct LiveStreamState {
 }
 
 impl LiveStreamState {
-    // pub fn update(
-    //     &mut self,
-    //     rpicam_process: Option<ProcessControl>,
-    //     ffmpeg_process: Option<ProcessControl>,
-    //     handle_pipe: Option<JoinHandle<()>>,
-    //     handle_watch: Option<JoinHandle<()>>,
-    //     running: bool,
-    //     // retry_count: u8,
-    // ) {
-    //     self.rpicam_process = rpicam_process;
-    //     self.ffmpeg_process = ffmpeg_process;
-    //     self.handle_pipe = handle_pipe;
-    //     self.handle_watch = handle_watch;
-    //     self.running = running;
-    //     // self.retry_count = retry_count;
-    // }
-
     pub async fn start(&mut self, rpicam: &Rpicam, ffmpeg: &Ffmpeg) -> Result<()> {
         let mut rpicam_child = rpicam.spawn()?;
         let mut rpicam_stdout = rpicam_child.stdout.take().ok_or_else(|| {
@@ -77,42 +60,6 @@ impl LiveStreamState {
         });
 
         info!(target = "live_stream", "Connected IO pipe");
-
-        // let state_ref = self.state.clone();
-
-        // let handle_watch = if let Some(mut watch_cam) = rpicam_process.exit_rx() {
-        //     if let Some(mut watch_ffmpeg) = ffmpeg_process.exit_rx() {
-        //         Ok(tokio::spawn(async move {
-        //             tokio::select! {
-        //                 Ok(p) = &mut watch_cam => {
-        //                     warn!(target = "live_stream", "Process `{}` exit: {}", RPICAM_BIN, p);
-        //                     // let _ = process_control_ffmpeg.stop();
-        //                 }
-        //                 Ok(p) = &mut watch_ffmpeg => {
-        //                     warn!(target = "live_stream", "Process `{}` exit: {}", FFMPEG_BIN, p);
-        //                     // let _ = process_control_cam.stop();
-        //                 }
-        //             }
-
-        //             state_ref.write().await.stop().await;
-        //         }))
-        //     } else {
-        //         Err(anyhow!("Failed to get watch receiver for `{}`", FFMPEG_BIN))
-        //     }
-        // } else {
-        //     Err(anyhow!("Failed to get watch receiver for `{}`", RPICAM_BIN))
-        // }?;
-
-        // info!(target = "live_stream", "Setup watch task");
-
-        // self.state.write().await.update(
-        //     Some(rpicam_process),
-        //     Some(ffmpeg_process),
-        //     Some(handle_pipe),
-        //     Some(handle_watch),
-        //     true,
-        //     // 0,
-        // );
 
         self.rpicam_process = Some(rpicam_process);
         self.ffmpeg_process = Some(ffmpeg_process);
@@ -217,9 +164,7 @@ impl LiveStream {
                                 if let Some(mut watch_ffmpeg) =
                                     state_lock.ffmpeg_process.as_mut().and_then(|p| p.exit_rx())
                                 {
-                                    let state_ref = state_ref.clone();
-                                    // let rpicam_ref = rpicam_ref.clone();
-                                    // let ffmpeg_ref = ffmpeg_ref.clone();
+                                    let state_ref_watch = state_ref.clone();
 
                                     let handle_watch = tokio::spawn(async move {
                                         tokio::select! {
@@ -229,9 +174,12 @@ impl LiveStream {
                                             Ok(p) = &mut watch_ffmpeg => {
                                                 warn!(target = "live_stream", "Process `{}` exit: {}", FFMPEG_BIN, p);
                                             }
+                                            else => {
+                                                error!(target = "live_stream", "Both `{}` and `{}` seems to have exited prematurely...", RPICAM_BIN, FFMPEG_BIN);
+                                            }
                                         }
 
-                                        state_ref.write().await.stop().await;
+                                        state_ref_watch.write().await.stop().await;
                                     });
 
                                     state_lock.handle_watch = Some(handle_watch);
