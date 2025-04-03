@@ -44,6 +44,7 @@ pub struct ProcessControl {
     logger: JoinHandle<()>,
     waiter: JoinHandle<()>,
     exit_rx: Option<Receiver<ProcessExit>>,
+    stopped: bool,
 }
 
 impl ProcessControl {
@@ -123,6 +124,7 @@ impl ProcessControl {
             logger: handle_logger,
             waiter: handle_waiter,
             exit_rx: Some(exit_rx),
+            stopped: false,
         })
     }
 
@@ -138,15 +140,17 @@ impl ProcessControl {
         self.exit_rx.take()
     }
 
-    pub fn stop(&self) -> Result<()> {
+    pub fn stop(&mut self) -> Result<()> {
         self.send_signal_inner(Signal::SIGINT)
     }
 
-    pub fn kill(&self) -> Result<()> {
+    pub fn kill(&mut self) -> Result<()> {
         self.send_signal_inner(Signal::SIGTERM)
     }
 
-    fn send_signal_inner(&self, sig: Signal) -> Result<()> {
+    fn send_signal_inner(&mut self, sig: Signal) -> Result<()> {
+        self.stopped = true;
+
         let nix_pid = Pid::from_raw(self.pid as i32);
         kill(nix_pid, sig).map_err(|e| {
             anyhow!(
@@ -161,13 +165,15 @@ impl ProcessControl {
 
 impl Drop for ProcessControl {
     fn drop(&mut self) {
-        warn!(
-            target = "process_control",
-            "Process control dropped, terminating process `{}`", self.id
-        );
+        if !self.stopped {
+            warn!(
+                target = "process_control",
+                "Process control dropped, terminating process `{}`", self.id
+            );
 
-        self.logger.abort();
-        self.waiter.abort();
-        let _ = self.kill();
+            self.logger.abort();
+            self.waiter.abort();
+            let _ = self.kill();
+        }
     }
 }

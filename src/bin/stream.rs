@@ -59,14 +59,6 @@ async fn main() -> Result<()> {
         }
     }
 
-    // tokio::signal::ctrl_c()
-    //     .await
-    //     .expect("Failed to listen for ctrl+c");
-
-    // info!("Shutdown signal received");
-
-    // live_stream.stop().await;
-
     info!("Bye");
 
     Ok(())

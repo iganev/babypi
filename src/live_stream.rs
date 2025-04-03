@@ -86,7 +86,7 @@ impl LiveStreamState {
             handle_watch.abort();
         }
 
-        if let Some(ffmpeg_process) = self.ffmpeg_process.take() {
+        if let Some(mut ffmpeg_process) = self.ffmpeg_process.take() {
             if let Err(e) = ffmpeg_process.stop() {
                 error!(
                     target = "live_stream",
@@ -95,7 +95,7 @@ impl LiveStreamState {
             }
         }
 
-        if let Some(rpicam_process) = self.rpicam_process.take() {
+        if let Some(mut rpicam_process) = self.rpicam_process.take() {
             if let Err(e) = rpicam_process.stop() {
                 error!(
                     target = "live_stream",
@@ -246,6 +246,7 @@ impl LiveStream {
     pub async fn stop(&self) {
         let mut watchdog_lock = self.watchdog.write().await;
         if let Some(watchdog) = watchdog_lock.take() {
+            info!(target = "live_stream", "Stopping stream watchdog");
             watchdog.abort();
         }
         drop(watchdog_lock);
