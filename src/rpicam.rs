@@ -7,6 +7,8 @@ use std::sync::LazyLock;
 use anyhow::anyhow;
 use anyhow::Result;
 use regex::Regex;
+use serde::Deserialize;
+use serde::Serialize;
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 use tokio::process::Child;
@@ -17,7 +19,7 @@ use tracing::info;
 pub const RPICAM_BIN: &str = "rpicam-vid";
 
 pub const RPICAM_LIST_REGEX_DEVICE: &str =
-    r#"^(\d+)\s:\s(.*)\s\[(\d+)x(\d+)\s(\d+)-bit\]\s\((.*)\)"#;
+    r#"^(\d+)\s:\s(.*)\s\[(\d+)x(\d+)\s(\d+)[^\]]+\]\s\((.*)\)"#;
 pub static RPICAM_LIST_REGEX_DEVICE_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(RPICAM_LIST_REGEX_DEVICE).expect("Failed to compile device regex"));
 
@@ -59,7 +61,7 @@ impl Default for Rpicam {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RpicamCodec {
     #[default]
     H264,
