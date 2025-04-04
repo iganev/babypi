@@ -378,42 +378,6 @@ impl Rpicam {
             .spawn()
             .map_err(|e| anyhow!("Failed to spawn child process {}: {}", RPICAM_BIN, e))?;
 
-        // let Some(_pid) = child.id() else {
-        //     return Err(anyhow!(
-        //         "Failed to resolve child process PID for {}",
-        //         RPICAM_BIN
-        //     ));
-        // };
-
-        // let stdout = child
-        //     .stdout
-        //     .take()
-        //     .ok_or_else(|| anyhow!("Failed to capture child process output for {}", RPICAM_BIN))?;
-
-        // let stderr = child.stderr.take().ok_or_else(|| {
-        //     anyhow!(
-        //         "Failed to capture child process err output for {}",
-        //         RPICAM_BIN
-        //     )
-        // })?;
-
-        // let mut reader = BufReader::new(stderr).lines();
-
-        // tokio::spawn(async move {
-        //     match child.wait().await {
-        //         Ok(code) => {
-        //             info!(
-        //                 "Child process {} exit code: {}",
-        //                 RPICAM_BIN,
-        //                 code.code().unwrap_or(-1)
-        //             );
-        //         }
-        //         Err(e) => {
-        //             error!("Child process {} error: {}", RPICAM_BIN, e);
-        //         }
-        //     }
-        // });
-
         Ok(child)
     }
 }
