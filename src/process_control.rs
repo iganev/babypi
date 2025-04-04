@@ -72,6 +72,8 @@ impl ProcessControl {
 
                 Err(None::<String>)
             }) {
+                let line = line.replace("\r", "");
+
                 info!(
                     target = "process_control",
                     "PROC[{}] STDERR: {}", &log_id, line
@@ -141,16 +143,16 @@ impl ProcessControl {
     }
 
     pub fn stop(&mut self) -> Result<()> {
+        self.stopped = true;
         self.send_signal_inner(Signal::SIGINT)
     }
 
     pub fn kill(&mut self) -> Result<()> {
+        self.stopped = true;
         self.send_signal_inner(Signal::SIGTERM)
     }
 
     fn send_signal_inner(&mut self, sig: Signal) -> Result<()> {
-        self.stopped = true;
-
         let nix_pid = Pid::from_raw(self.pid as i32);
         kill(nix_pid, sig).map_err(|e| {
             anyhow!(
@@ -171,9 +173,10 @@ impl Drop for ProcessControl {
                 "Process control dropped, terminating process `{}`", self.id
             );
 
+            let _ = self.stop();
+
             self.logger.abort();
             self.waiter.abort();
-            let _ = self.kill();
         }
     }
 }
