@@ -26,6 +26,7 @@ babypi.iml
 tarpaulin-report.html
 
 # Random junk I tested with
+Config.toml
 test.h264
 test.raw
 test.jpg

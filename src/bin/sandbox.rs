@@ -3,13 +3,15 @@ use std::{path::PathBuf, process::Stdio, str::FromStr, time::Duration};
 use actix_web::{web, App, HttpResponse, HttpServer};
 use babypi::{
     ffmpeg::{
-        Ffmpeg, FfmpegAudio, FFMPEG_BIN, FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE,
-        FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT, FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE,
+        audio::FfmpegAudio, audio::FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE,
+        audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT, audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE, Ffmpeg,
+        FFMPEG_BIN,
     },
     process_control::ProcessControl,
     rpicam::{Rpicam, RpicamCodec, RPICAM_BIN},
 };
 use bytes::{BufMut, BytesMut};
+use clap::Parser;
 use tokio::{
     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     process::Command,
@@ -20,10 +22,14 @@ use tokio::{
 use tracing::{error, info};
 use tracing_subscriber::{util::SubscriberInitExt, FmtSubscriber};
 
+use babypi::config::CliArgs;
+
 use anyhow::{anyhow, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let args = CliArgs::parse();
+
     // Logging
     FmtSubscriber::builder()
         .with_max_level(tracing::Level::from_str("DEBUG")?)
@@ -112,12 +118,12 @@ async fn main() -> Result<()> {
     //
 
     let ffmpeg_audio = FfmpegAudio::new(
-        babypi::ffmpeg::FfmpegAudioDeviceType::Pulse,
+        babypi::ffmpeg::audio::FfmpegAudioDeviceType::Pulse,
         "alsa_input.usb-DCMT_Technology_USB_Lavalier_Microphone_214b206000000178-00.mono-fallback", //"hw:3,0",
         Some(FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE),
         Some(FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT.to_string()),
         Some(1),
-        Some(babypi::ffmpeg::FfmpegAudioFormat::Aac),
+        Some(babypi::ffmpeg::audio::FfmpegAudioFormat::Aac),
         Some(FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE.to_string()),
     );
 
