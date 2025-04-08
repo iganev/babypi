@@ -24,21 +24,19 @@ pub fn main() -> Result<()> {
         None,
     )?;
 
-    let buffer_size = 14400; // 300ms
-    let mut buffer = vec![0i16; buffer_size];
-
-    let normalized_buffer_size = 28800;
-    let mut normalized_buffer = vec![0f32; normalized_buffer_size];
+    let mut buffer = [0i16; 14400]; // 300ms
+    let mut normalized_buffer = [0f32; 14400];
 
     loop {
         let time = Instant::now();
 
-        s.read(to_u8_slice(buffer.as_mut_slice()))?;
+        s.read(to_u8_slice(&mut buffer))?;
 
-        normalized_buffer = buffer
+        buffer
             .iter()
             .map(|sample| *sample as f32 / 32768.0)
-            .collect();
+            .zip(normalized_buffer.iter_mut())
+            .for_each(|(b, df)| *df = b);
 
         let rms = calculate_rms(&normalized_buffer);
 
