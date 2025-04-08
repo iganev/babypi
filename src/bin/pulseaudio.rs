@@ -4,6 +4,7 @@ use libpulse_binding as pulse;
 use libpulse_simple_binding as simple;
 use std::fs::File;
 use std::io::Write;
+use std::time::Instant;
 
 pub fn main() -> Result<()> {
     let spec = pulse::sample::Spec {
@@ -30,6 +31,8 @@ pub fn main() -> Result<()> {
     let mut normalized_buffer = vec![0f32; normalized_buffer_size];
 
     loop {
+        let time = Instant::now();
+
         s.read(to_u8_slice(buffer.as_mut_slice()))?;
 
         normalized_buffer = buffer
@@ -39,7 +42,7 @@ pub fn main() -> Result<()> {
 
         let rms = calculate_rms(&normalized_buffer);
 
-        print!("\rRMS: {}", rms);
+        println!("\rRMS: {rms:.3};\t\t{}", time.elapsed().as_millis());
     }
 
     // let mut file = File::create("test.raw")?;
