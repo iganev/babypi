@@ -48,6 +48,4 @@ async fn main() -> Result<()> {
             offset = 0;
         }
     }
-
-    Ok(())
 }

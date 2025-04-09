@@ -118,9 +118,9 @@ impl Ffmpeg {
             args.push(
                 audio_input
                     .sample_format
-                    .as_deref()
-                    .unwrap_or(FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT)
-                    .to_string(),
+                    .as_ref()
+                    .map(|sf| sf.to_string())
+                    .unwrap_or(FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT.to_string()),
             );
 
             args.push("-channels".to_string());

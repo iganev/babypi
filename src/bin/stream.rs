@@ -3,7 +3,7 @@ use std::{path::PathBuf, str::FromStr, time::Duration};
 use babypi::{
     ffmpeg::{
         audio::FfmpegAudio, audio::FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE,
-        audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT, audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE, Ffmpeg,
+        audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE, Ffmpeg,
     },
     live_stream::LiveStream,
     rpicam::{Rpicam, RpicamCodec},
@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
         babypi::ffmpeg::audio::FfmpegAudioDeviceType::Pulse,
         "alsa_input.usb-DCMT_Technology_USB_Lavalier_Microphone_214b206000000178-00.mono-fallback", //"hw:3,0",
         Some(FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE),
-        Some(FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT.to_string()),
+        Some(babypi::ffmpeg::audio::FfmpegAudioSampleFormat::S16le),
         Some(1),
         Some(babypi::ffmpeg::audio::FfmpegAudioFormat::Aac),
         Some(FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE.to_string()),

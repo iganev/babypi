@@ -2,8 +2,8 @@ use anyhow::Result;
 
 use libpulse_binding as pulse;
 use libpulse_simple_binding as simple;
-use std::fs::File;
-use std::io::Write;
+// use std::fs::File;
+// use std::io::Write;
 use std::time::Instant;
 
 pub fn main() -> Result<()> {

@@ -1,5 +1,6 @@
 use std::path::Path;
 
+pub mod audio_monitor;
 pub mod config;
 pub mod ffmpeg;
 pub mod gpio;

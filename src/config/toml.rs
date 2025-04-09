@@ -5,7 +5,7 @@ use rppal::uart::Parity;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ffmpeg::audio::{FfmpegAudioDeviceType, FfmpegAudioFormat},
+    ffmpeg::audio::{FfmpegAudioDeviceType, FfmpegAudioFormat, FfmpegAudioSampleFormat},
     rpicam::RpicamCodec,
 };
 
@@ -19,6 +19,7 @@ pub struct TomlConfigV1 {
     pub stream: TomlConfigStreamV1,
     pub server: TomlConfigServerV1,
     pub recording: TomlConfigRecordingV1,
+    pub monitoring: TomlConfigMonitoringV1,
     pub telemetry: TomlConfigTelemetryV1,
     pub notifications: TomlConfigNotificationsV1,
 }
@@ -53,6 +54,12 @@ pub struct TomlConfigRecordingV1 {
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
+pub struct TomlConfigMonitoringV1 {
+    pub enabled: bool,
+    pub rms_threshold: Option<u32>,
+}
+
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct TomlConfigTelemetryV1 {
     pub enabled: bool,
 }
@@ -84,7 +91,7 @@ pub struct MicrophoneConfigV1 {
     pub interface: Option<FfmpegAudioDeviceType>,
     pub device: Option<String>,
     pub sample_rate: Option<u32>,
-    pub sample_format: Option<String>,
+    pub sample_format: Option<FfmpegAudioSampleFormat>,
     pub channels: Option<u8>,
     pub output_format: Option<FfmpegAudioFormat>,
     pub output_bitrate: Option<String>,
@@ -151,6 +158,7 @@ impl TomlConfigV1 {
             stream: TomlConfigStreamV1::default(),
             server: TomlConfigServerV1::default(),
             recording: TomlConfigRecordingV1::default(),
+            monitoring: TomlConfigMonitoringV1::default(),
             telemetry: TomlConfigTelemetryV1::default(),
             notifications: TomlConfigNotificationsV1::default(),
         }
