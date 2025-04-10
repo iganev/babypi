@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
             FfmpegAudioSampleFormat::S16le.into(),
             48_000,
             1,
-            None, //Some("alsa_input.usb-DCMT_Technology_USB_Lavalier_Microphone_214b206000000178-00.mono-fallback".to_string()),
+            Some("alsa_input.usb-DCMT_Technology_USB_Lavalier_Microphone_214b206000000178-00.mono-fallback".to_string()),
             Some(0.01),
         ),
         Some(tx),
