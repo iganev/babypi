@@ -2,4 +2,4 @@ mod cli;
 mod toml;
 
 pub use cli::CliArgs;
-pub use toml::{TomlConfig, TOML_CONFIG_DEFAULT_FILENAME};
+pub use toml::{TomlConfig, TOML_CONFIG_DEFAULT_DIR, TOML_CONFIG_DEFAULT_FILENAME};

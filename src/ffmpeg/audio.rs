@@ -3,11 +3,11 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr};
 
 pub static FFMPEG_DEFAULT_AUDIO_DEVICE: &str = "hw:1,0";
-pub static FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE: u32 = 48_000;
+pub static FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE: u32 = 44_100;
 pub static FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT: &str = "s16le";
 pub static FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE: &str = "128k";
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub enum FfmpegAudioFormat {
     #[default]
     Aac,
@@ -35,7 +35,7 @@ impl FromStr for FfmpegAudioFormat {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub enum FfmpegAudioSampleFormat {
     // /// Unsigned 8 Bit PCM.
     // U8,
@@ -107,7 +107,7 @@ impl FromStr for FfmpegAudioSampleFormat {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub enum FfmpegAudioDeviceType {
     #[default]
     Alsa,

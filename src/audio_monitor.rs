@@ -14,6 +14,7 @@ use tokio::task::JoinHandle;
 use tracing::{debug, error, info};
 
 pub const AUDIO_MONITOR_BOOTSTRAP_RETRY: u8 = 10;
+pub const AUDIO_MONITOR_DEFAULT_RMS_THRESHOLD: f32 = 0.1;
 
 impl From<FfmpegAudioSampleFormat> for PulseAudioSampleFormat {
     fn from(value: FfmpegAudioSampleFormat) -> Self {
@@ -50,7 +51,7 @@ impl Default for AudioMonitorContext {
             sample_rate: 44_000,
             channels: 1,
             device: None,
-            rms_threshold: Some(0.01),
+            rms_threshold: Some(AUDIO_MONITOR_DEFAULT_RMS_THRESHOLD),
         }
     }
 }

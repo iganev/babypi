@@ -1,6 +1,7 @@
 use std::{path::PathBuf, process::Stdio, str::FromStr};
 
 use audio::FfmpegAudio;
+use audio::FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE;
 use audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT;
 use audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE;
 use tokio::process::{Child, Command};
@@ -10,7 +11,7 @@ use anyhow::Result;
 
 pub static FFMPEG_BIN: &str = "ffmpeg";
 
-pub static FFMPEG_DEFAULT_STREAM_DIR: &str = "/var/stream";
+pub static FFMPEG_DEFAULT_STREAM_DIR: &str = "/var/run/babypi/stream";
 pub static FFMPEG_DEFAULT_STREAM_PLAYLIST_NAME: &str = "live.m3u8";
 pub static FFMPEG_DEFAULT_STREAM_SEGMENT_NAME_PATTERN: &str = "%08d.ts";
 
@@ -18,10 +19,10 @@ pub mod audio;
 
 #[derive(Clone, Debug, Default)]
 pub struct FfmpegExtraArgs {
-    setup: Option<Vec<String>>,
-    video_input: Option<Vec<String>>,
-    audio_input: Option<Vec<String>>,
-    output: Option<Vec<String>>,
+    pub setup: Option<Vec<String>>,
+    pub video_input: Option<Vec<String>>,
+    pub audio_input: Option<Vec<String>>,
+    pub output: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug)]
@@ -171,7 +172,12 @@ impl Ffmpeg {
 
             // audio bitrate
             args.push("-b:a".to_string());
-            args.push(audio_input.output_bitrate.clone().unwrap_or_default());
+            args.push(
+                audio_input
+                    .output_bitrate
+                    .clone()
+                    .unwrap_or(FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE.to_string()),
+            );
 
             // output streams mapping
             args.push("-map".to_string());

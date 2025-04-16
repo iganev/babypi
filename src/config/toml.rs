@@ -5,10 +5,15 @@ use rppal::uart::Parity;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ffmpeg::audio::{FfmpegAudioDeviceType, FfmpegAudioFormat, FfmpegAudioSampleFormat},
-    rpicam::RpicamCodec,
+    ffmpeg::{
+        audio::{FfmpegAudioDeviceType, FfmpegAudioFormat, FfmpegAudioSampleFormat},
+        FFMPEG_DEFAULT_STREAM_DIR,
+    },
+    file_exists,
+    rpicam::{Rpicam, RpicamCodec, RpicamDevice, RpicamDeviceMode},
 };
 
+pub const TOML_CONFIG_DEFAULT_DIR: &str = "/etc/babypi";
 pub const TOML_CONFIG_DEFAULT_FILENAME: &str = "Config.toml";
 
 pub type TomlConfig = TomlConfigV1;
@@ -75,11 +80,15 @@ pub struct TomlConfigNotificationsV1 {
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct CameraConfigV1 {
     pub device_index: Option<u32>,
+    #[serde(skip)]
+    pub device: Option<RpicamDevice>,
     pub codec: Option<RpicamCodec>,
     pub width: Option<u32>,
     pub height: Option<u32>,
     pub fps: Option<u32>,
     pub tuning_file: Option<PathBuf>,
+    pub hflip: Option<bool>,
+    pub vflip: Option<bool>,
     pub extra_args: Option<String>,
     pub ircut_gpio_pin: Option<u8>,
     pub ircut_on_state: Option<bool>,
@@ -103,6 +112,8 @@ pub struct IrCamConfigV1 {
     pub scale: Option<u32>,
     pub offset_x: Option<u32>,
     pub offset_y: Option<u32>,
+    pub hflip: Option<bool>,
+    pub vflip: Option<bool>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -145,6 +156,14 @@ impl TomlConfigV1 {
                 let mut config: TomlConfigV1 = toml::from_str(&c)
                     .map_err(|e| anyhow!("Failed to parse toml config: {}", e))?;
 
+                let cameras = Rpicam::list_cameras().await?;
+                let device_index = config.hardware.camera.device_index.unwrap_or(0);
+                config.hardware.camera.device = cameras.get(device_index as usize).cloned();
+
+                if config.hardware.camera.codec.is_none() {
+                    config.hardware.camera.codec = Some(RpicamCodec::default());
+                }
+
                 Ok(config)
             }
             Err(e) => Err(anyhow!("Failed to load profile config: {}", e).into()),
@@ -166,6 +185,75 @@ impl TomlConfigV1 {
 
     /// Check declared values validity
     pub async fn validate(&self) -> Result<()> {
+        let camera_index = self.hardware.camera.device_index.unwrap_or(0) as usize;
+        let camera_mode = if let Some(w) = self.hardware.camera.width {
+            if let Some(h) = self.hardware.camera.height {
+                if let Some(fps) = self.hardware.camera.fps {
+                    RpicamDeviceMode::new("selected", w, h, fps)
+                } else {
+                    RpicamDeviceMode::default()
+                }
+            } else {
+                RpicamDeviceMode::default()
+            }
+        } else {
+            RpicamDeviceMode::default()
+        };
+
+        // let cameras = Rpicam::list_cameras().await?;
+
+        if let Some(camera) = self.hardware.camera.device.as_ref() {
+            if !camera.modes.iter().any(|mode| {
+                mode.fps >= camera_mode.fps
+                    && mode.width == camera_mode.width
+                    && mode.height == camera_mode.height
+            }) {
+                return Err(anyhow!(
+                    "Camera `{}` does not support selected mode {}x{} at {} fps.",
+                    camera_index,
+                    camera_mode.width,
+                    camera_mode.height,
+                    camera_mode.fps
+                ));
+            }
+        } else {
+            return Err(anyhow!("Camera `{}` not found.", camera_index));
+        }
+
+        if let Some(tuning_file) = self.hardware.camera.tuning_file.as_ref() {
+            if !file_exists(tuning_file).await {
+                return Err(anyhow!("Camera tuning file is invalid."));
+            }
+        }
+
+        let data_dir = self
+            .stream
+            .data_dir
+            .clone()
+            .unwrap_or(FFMPEG_DEFAULT_STREAM_DIR.into());
+
+        if !file_exists(&data_dir).await {
+            return Err(anyhow!("Stream storage directory is invalid."));
+        }
+
+        if self.monitoring.enabled {
+            if !self.hardware.mic.enabled {
+                return Err(anyhow!(
+                    "Audio monitoring can't be enabled without enabled microphone config."
+                ));
+            } else if self
+                .hardware
+                .mic
+                .interface
+                .as_ref()
+                .is_none_or(|interface| interface == &FfmpegAudioDeviceType::Alsa)
+            {
+                return Err(anyhow!(
+                    "Audio monitoring can't be enabled when using ALSA."
+                ));
+            }
+        }
+
         Ok(())
     }
 }

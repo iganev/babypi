@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
     let mut monitor = AudioMonitor::new(
         AudioMonitorContext::new(
             FfmpegAudioSampleFormat::S16le.into(),
-            48_000,
+            44_100,
             1,
             Some("alsa_input.usb-DCMT_Technology_USB_Lavalier_Microphone_214b206000000178-00.mono-fallback".to_string()),
             Some(0.01),

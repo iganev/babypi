@@ -27,6 +27,8 @@ async fn main() -> Result<()> {
         Some(RpicamCodec::default()),
         None,
         PathBuf::from_str("/usr/share/libcamera/ipa/rpi/vc4/imx219_noir.json").ok(),
+        true,
+        true,
         None,
     );
 

@@ -464,6 +464,7 @@ dependencies = [
  "actix-web",
  "anyhow",
  "async-recursion",
+ "base64 0.20.0",
  "bytes",
  "chrono",
  "clap",
@@ -477,7 +478,8 @@ dependencies = [
  "nix",
  "openh264",
  "regex",
- "rppal",
+ "rpmlx90640",
+ "rppal 0.22.1",
  "serde",
  "serde_json",
  "tokio",
@@ -2167,6 +2169,25 @@ name = "rgb"
 version = "0.8.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57397d16646700483b67d2dd6511d79318f9d057fdbd21a4066aeac8b41d310a"
+
+[[package]]
+name = "rpmlx90640"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ec87263c8d16cdf1748bde8c265852e86927dd87338fdd5454d345e87842560"
+dependencies = [
+ "lazy_static",
+ "rppal 0.14.1",
+]
+
+[[package]]
+name = "rppal"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "612e1a22e21f08a246657c6433fe52b773ae43d07c9ef88ccfc433cc8683caba"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "rppal"

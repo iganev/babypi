@@ -49,7 +49,9 @@ async fn main() -> Result<()> {
         Some(RpicamCodec::default()),
         None,
         PathBuf::from_str("/usr/share/libcamera/ipa/rpi/vc4/imx219_noir.json").ok(),
-        Some(vec!["--hflip".to_string(), "--vflip".to_string()]),
+        true,
+        true,
+        None,
     )
     .spawn()?;
 

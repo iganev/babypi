@@ -42,6 +42,8 @@ pub struct Rpicam {
     pub codec: Option<RpicamCodec>,
     pub mode: Option<RpicamDeviceMode>,
     pub tuning_file: Option<PathBuf>,
+    pub hflip: bool,
+    pub vflip: bool,
     // pub output_file: Option<PathBuf>,
     pub extra_args: Option<Vec<String>>,
     // pub psips_pipe: bool,
@@ -54,6 +56,8 @@ impl Default for Rpicam {
             codec: Default::default(),
             mode: Default::default(),
             tuning_file: None,
+            hflip: false,
+            vflip: false,
             // output_file: None,
             extra_args: None,
             // psips_pipe: true,
@@ -292,6 +296,8 @@ impl Rpicam {
         codec: Option<RpicamCodec>,
         mode: Option<RpicamDeviceMode>,
         tuning_file: Option<PathBuf>,
+        hflip: bool,
+        vflip: bool,
         // output_file: Option<PathBuf>,
         extra_args: Option<Vec<String>>,
         // psips: bool,
@@ -301,6 +307,8 @@ impl Rpicam {
             codec,
             mode,
             tuning_file,
+            hflip,
+            vflip,
             // output_file,
             extra_args,
             // psips_pipe: psips,
@@ -312,6 +320,12 @@ impl Rpicam {
     //
     fn build_rpicam_cmd_args(&self) -> Vec<String> {
         let mut args = Vec::new();
+
+        if let Some(camera) = self.camera.as_ref() {
+            args.push("--camera".to_string());
+            args.push(camera.index.to_string());
+        }
+
         args.push("-t".to_string());
         args.push(0.to_string());
 
@@ -346,6 +360,14 @@ impl Rpicam {
 
         args.push("--height".to_string());
         args.push(h.to_string());
+
+        if self.hflip {
+            args.push("--hflip".to_string());
+        }
+
+        if self.vflip {
+            args.push("--vflip".to_string());
+        }
 
         if let Some(extra_args) = self.extra_args.as_ref() {
             args.extend_from_slice(&extra_args);
