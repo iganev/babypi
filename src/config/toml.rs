@@ -35,6 +35,7 @@ pub struct TomlConfigHardwareV1 {
     pub ircam: IrCamConfigV1,
     pub mmwave: MmWaveConfigV1,
     pub mic: MicrophoneConfigV1,
+    pub accelerometer: AccelerometerConfigV1,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -120,6 +121,16 @@ pub struct IrCamConfigV1 {
 pub struct MmWaveConfigV1 {
     pub enabled: bool,
     pub gpio_pin: Option<u32>,
+    pub baud_rate: Option<u32>,
+    pub parity: Option<TomlParity>,
+    pub data_bits: Option<u8>,
+    pub stop_bits: Option<u8>,
+}
+
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+pub struct AccelerometerConfigV1 {
+    pub enabled: bool,
+    pub device: Option<String>,
     pub baud_rate: Option<u32>,
     pub parity: Option<TomlParity>,
     pub data_bits: Option<u8>,
