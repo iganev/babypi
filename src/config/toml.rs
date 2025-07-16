@@ -40,7 +40,6 @@ pub struct TomlConfigHardwareV1 {
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct TomlConfigStreamV1 {
-    pub auth: Option<bool>,
     pub audio: Option<bool>,
     pub data_dir: Option<PathBuf>,
     pub extra_args_setup: Option<String>,
@@ -52,6 +51,11 @@ pub struct TomlConfigStreamV1 {
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct TomlConfigServerV1 {
     pub bind: Option<String>,
+    pub webroot: Option<String>,
+    pub auth: Option<bool>,
+    pub bearer_token: Option<String>,
+    pub basic_username: Option<String>,
+    pub basic_password: Option<String>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -62,7 +66,7 @@ pub struct TomlConfigRecordingV1 {
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct TomlConfigMonitoringV1 {
     pub enabled: bool,
-    pub rms_threshold: Option<u32>,
+    pub rms_threshold: Option<f32>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -72,7 +76,7 @@ pub struct TomlConfigTelemetryV1 {
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct TomlConfigNotificationsV1 {
-    pub browser: Option<bool>,
+    pub browser: Option<String>,
     pub pushover: Option<String>,
     pub homeassistant: Option<String>,
     pub mqtt: Option<String>,

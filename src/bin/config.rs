@@ -2,7 +2,19 @@ use std::str::FromStr;
 
 use anyhow::{anyhow, Result};
 use babypi::{
-    config::{CliArgs, TomlConfig, TOML_CONFIG_DEFAULT_FILENAME},
+    config::{
+        AccelerometerConfigV1, CameraConfigV1, CliArgs, IrCamConfigV1, MicrophoneConfigV1,
+        MmWaveConfigV1, TomlConfig, TomlConfigHardwareV1, TomlConfigMonitoringV1,
+        TomlConfigNotificationsV1, TomlConfigRecordingV1, TomlConfigServerV1, TomlConfigStreamV1,
+        TomlConfigTelemetryV1, TomlParity, TOML_CONFIG_DEFAULT_FILENAME,
+    },
+    ffmpeg::{
+        audio::{
+            FfmpegAudioDeviceType, FfmpegAudioFormat, FfmpegAudioSampleFormat,
+            FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE, FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE,
+        },
+        FFMPEG_DEFAULT_STREAM_DIR,
+    },
     file_exists,
 };
 use clap::Parser;
@@ -38,7 +50,86 @@ async fn main() -> Result<()> {
     } else {
         info!("Creating default config");
 
-        let config = TomlConfig::new();
+        let config = TomlConfig {
+            hardware: TomlConfigHardwareV1 {
+                camera: CameraConfigV1 {
+                    device_index: Some(0),
+                    device: None,
+                    codec: Some(babypi::rpicam::RpicamCodec::H264),
+                    width: Some(1920),
+                    height: Some(1080),
+                    fps: Some(30),
+                    tuning_file: Some("/usr/share/libcamera/ipa/rpi/vc4/imx219_noir.json".into()),
+                    hflip: Some(true),
+                    vflip: Some(true),
+                    extra_args: Some("".to_string()),
+                    ircut_gpio_pin: Some(23),
+                    ircut_on_state: Some(true),
+                },
+                ircam: IrCamConfigV1 {
+                    enabled: true,
+                    scale: Some(20),
+                    offset_x: Some(100),
+                    offset_y: Some(100),
+                    hflip: Some(true),
+                    vflip: Some(true),
+                },
+                mmwave: MmWaveConfigV1 {
+                    enabled: true,
+                    gpio_pin: Some(18),
+                    baud_rate: Some(115_200),
+                    parity: Some(TomlParity::None),
+                    data_bits: Some(8),
+                    stop_bits: Some(1),
+                },
+                mic: MicrophoneConfigV1 {
+                    enabled: true,
+                    interface: Some(FfmpegAudioDeviceType::Pulse),
+                    device: Some("alsa_input.usb-DCMT_Technology_USB_Lavalier_Microphone_214b206000000178-00.mono-fallback".to_string()),
+                    sample_rate: Some(FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE),
+                    sample_format: Some(FfmpegAudioSampleFormat::S16le),
+                    channels: Some(1),
+                    output_format: Some(FfmpegAudioFormat::Aac),
+                    output_bitrate: Some(FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE.to_string()),
+                },
+                accelerometer: AccelerometerConfigV1 {
+                    enabled: true,
+                    device: Some("/dev/ttyACM0".to_string()),
+                    baud_rate: Some(115_200),
+                    parity: Some(TomlParity::None),
+                    data_bits: Some(8),
+                    stop_bits: Some(1),
+                },
+            },
+            stream: TomlConfigStreamV1 {
+                audio: Some(true),
+                data_dir: Some(FFMPEG_DEFAULT_STREAM_DIR.into()),
+                extra_args_setup: Some("".to_string()),
+                extra_args_video_input: Some("".to_string()),
+                extra_args_audio_input: Some("".to_string()),
+                extra_args_output: Some("".to_string()),
+            },
+            server: TomlConfigServerV1 {
+                bind: Some("0.0.0.0:8080".to_string()),
+                auth: Some(true),
+                bearer_token: Some("bearer_token".to_string()),
+                basic_username:Some("admin".to_string()),
+                basic_password: Some("password".to_string()), 
+                webroot: Some("/var/lib/babypi/static".to_string()) 
+            },
+            recording: TomlConfigRecordingV1 { enabled: true },
+            monitoring: TomlConfigMonitoringV1 {
+                enabled: true,
+                rms_threshold: Some(0.1),
+            },
+            telemetry: TomlConfigTelemetryV1 { enabled: true },
+            notifications: TomlConfigNotificationsV1 {
+                browser: Some("push".to_string()),
+                pushover: Some("push".to_string()),
+                homeassistant: Some("hass".to_string()),
+                mqtt: Some("mqtt".to_string()),
+            },
+        };
 
         let config_content = toml::to_string_pretty(&config)?;
 
