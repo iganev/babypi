@@ -64,13 +64,13 @@ impl ProcessControl {
         let handle_logger = tokio::spawn(async move {
             let mut reader = BufReader::new(stderr).lines();
 
-            while let Ok(Some(line)) = reader.next_line().await.or_else(|e| {
+            while let Ok(Some(line)) = reader.next_line().await.map_err(|e| {
                 error!(
                     target = "process_control",
                     "Failed to read stderr for process `{}`: {}", &log_id, e
                 );
 
-                Err(None::<String>)
+                None::<String>
             }) {
                 let line = line.replace("\r", "");
 

@@ -1,15 +1,12 @@
 use std::path::Path;
 
-use actix_web::dev::ServerHandle;
-use anyhow::anyhow;
+// use actix_web::dev::ServerHandle;
 use anyhow::Result;
 
-use audio_monitor::AudioMonitor;
+// use audio_monitor::AudioMonitor;
 use config::TomlConfig;
 use ffmpeg::audio::FfmpegAudio;
 use ffmpeg::audio::FFMPEG_DEFAULT_AUDIO_DEVICE;
-use ffmpeg::audio::FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE;
-use ffmpeg::audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE;
 use ffmpeg::Ffmpeg;
 use ffmpeg::FfmpegExtraArgs;
 use ffmpeg::FFMPEG_DEFAULT_STREAM_DIR;
@@ -38,8 +35,8 @@ pub struct BabyPi {
     config: TomlConfig,
 
     live_stream: Option<LiveStream>,
-    web_server: Option<ServerHandle>,
-    audio_monitor: Option<AudioMonitor>,
+    // web_server: Option<ServerHandle>,
+    // audio_monitor: Option<AudioMonitor>,
 }
 
 impl BabyPi {
@@ -47,8 +44,8 @@ impl BabyPi {
         Self {
             config,
             live_stream: None,
-            web_server: None,
-            audio_monitor: None,
+            // web_server: None,
+            // audio_monitor: None,
         }
     }
 

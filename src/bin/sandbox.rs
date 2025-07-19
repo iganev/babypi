@@ -1,24 +1,24 @@
-use std::{path::PathBuf, process::Stdio, str::FromStr, time::Duration};
+use std::{path::PathBuf, str::FromStr};
 
 use actix_web::{web, App, HttpResponse, HttpServer};
 use babypi::{
     ffmpeg::{
         audio::FfmpegAudio, audio::FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE,
-        audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT, audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE, Ffmpeg,
-        FFMPEG_BIN,
+        audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE, Ffmpeg,
     },
     process_control::ProcessControl,
     rpicam::{Rpicam, RpicamCodec, RPICAM_BIN},
 };
-use bytes::{BufMut, BytesMut};
+// use bytes::{BufMut, BytesMut};
 use clap::Parser;
-use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
-    process::Command,
-    runtime, select,
-    sync::mpsc,
-    time::sleep,
-};
+use tokio::select;
+// use tokio::{
+//     io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+//     process::Command,
+//     runtime, select,
+//     sync::mpsc,
+//     time::sleep,
+// };
 use tracing::{error, info};
 use tracing_subscriber::{util::SubscriberInitExt, FmtSubscriber};
 
@@ -28,7 +28,7 @@ use anyhow::{anyhow, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let args = CliArgs::parse();
+    let _args = CliArgs::parse();
 
     // Logging
     FmtSubscriber::builder()

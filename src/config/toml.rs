@@ -181,7 +181,7 @@ impl TomlConfigV1 {
 
                 Ok(config)
             }
-            Err(e) => Err(anyhow!("Failed to load profile config: {}", e).into()),
+            Err(e) => Err(anyhow!("Failed to load profile config: {}", e)),
         }
     }
 

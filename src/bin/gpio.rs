@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
 
         offset += len;
 
-        if let Some(index) = buf.iter().position(|b| *b == '\n' as u8) {
+        if let Some(index) = buf.iter().position(|b| *b == b'\n') {
             println!("UART: {}", String::from_utf8_lossy(&buf[0..index]));
             buf.copy_within((index + 1).., 0);
             offset = 0;

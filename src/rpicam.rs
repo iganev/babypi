@@ -36,7 +36,7 @@ pub static RPICAM_LIST_REGEX_MODE_FORMAT_CONTINUE_REGEX: LazyLock<Regex> = LazyL
         .expect("Failed to compile mode format continue regex")
 });
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Rpicam {
     pub camera: Option<RpicamDevice>,
     pub codec: Option<RpicamCodec>,
@@ -49,21 +49,21 @@ pub struct Rpicam {
     // pub psips_pipe: bool,
 }
 
-impl Default for Rpicam {
-    fn default() -> Self {
-        Self {
-            camera: None,
-            codec: Default::default(),
-            mode: Default::default(),
-            tuning_file: None,
-            hflip: false,
-            vflip: false,
-            // output_file: None,
-            extra_args: None,
-            // psips_pipe: true,
-        }
-    }
-}
+// impl Default for Rpicam {
+//     fn default() -> Self {
+//         Self {
+//             camera: None,
+//             codec: Default::default(),
+//             mode: Default::default(),
+//             tuning_file: None,
+//             hflip: false,
+//             vflip: false,
+//             // output_file: None,
+//             extra_args: None,
+//             // psips_pipe: true,
+//         }
+//     }
+// }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RpicamCodec {
@@ -370,7 +370,7 @@ impl Rpicam {
         }
 
         if let Some(extra_args) = self.extra_args.as_ref() {
-            args.extend_from_slice(&extra_args);
+            args.extend_from_slice(extra_args);
         }
 
         let output = "-";
