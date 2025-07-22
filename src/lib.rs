@@ -1,6 +1,15 @@
 use std::path::Path;
+use std::str::FromStr;
 
-// use actix_web::dev::ServerHandle;
+use actix_cors::Cors;
+use actix_files::Files;
+use actix_web::dev::ServerHandle;
+use actix_web::http::header::ACCEPT;
+use actix_web::http::header::AUTHORIZATION;
+use actix_web::http::header::CONTENT_TYPE;
+use actix_web::http::header::RANGE;
+use actix_web::App;
+use actix_web::HttpServer;
 use anyhow::Result;
 
 // use audio_monitor::AudioMonitor;
@@ -13,6 +22,16 @@ use ffmpeg::FFMPEG_DEFAULT_STREAM_DIR;
 use live_stream::LiveStream;
 use rpicam::Rpicam;
 use rpicam::RpicamDeviceMode;
+use tokio::sync::broadcast::channel;
+use tracing::error;
+
+use crate::audio_monitor::AudioMonitor;
+use crate::audio_monitor::AudioMonitorContext;
+use crate::ffmpeg::audio::FfmpegAudioSampleFormat;
+use crate::ffmpeg::audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT;
+use crate::ffmpeg::audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE;
+use crate::server::middleware::auth::AuthMiddleware;
+use crate::server::middleware::headers::HlsHeadersMiddleware;
 
 pub mod audio_monitor;
 pub mod config;
@@ -35,8 +54,8 @@ pub struct BabyPi {
     config: TomlConfig,
 
     live_stream: Option<LiveStream>,
-    // web_server: Option<ServerHandle>,
-    // audio_monitor: Option<AudioMonitor>,
+    web_server: Option<ServerHandle>,
+    audio_monitor: Option<AudioMonitor>,
 }
 
 impl BabyPi {
@@ -44,13 +63,18 @@ impl BabyPi {
         Self {
             config,
             live_stream: None,
-            // web_server: None,
-            // audio_monitor: None,
+            web_server: None,
+            audio_monitor: None,
         }
     }
 
     pub async fn run(&mut self) -> Result<()> {
         self.live_stream = Some(self.run_live_stream().await?);
+        self.web_server = Some(self.run_web_server().await?);
+
+        if self.config.monitoring.enabled {
+            self.audio_monitor = Some(self.run_audio_monitor().await?);
+        }
 
         Ok(())
     }
@@ -160,5 +184,87 @@ impl BabyPi {
         live_stream.start().await;
 
         Ok(live_stream)
+    }
+
+    async fn run_web_server(&mut self) -> Result<ServerHandle> {
+        let auth = AuthMiddleware::new(
+            self.config.server.basic_username.clone(),
+            self.config.server.basic_password.clone(),
+            self.config.server.bearer_token.clone(),
+        );
+
+        let static_dir = self.config.server.webroot.clone();
+        let stream_dir = self
+            .config
+            .stream
+            .data_dir
+            .as_ref()
+            .and_then(|p| p.to_str().map(str::to_string))
+            .unwrap_or(FFMPEG_DEFAULT_STREAM_DIR.to_string());
+
+        let server = HttpServer::new(move || {
+            let cors = Cors::default()
+                .allow_any_origin()
+                .allowed_methods(vec!["GET", "POST", "HEAD", "OPTIONS"])
+                .allowed_headers(vec![AUTHORIZATION, ACCEPT, RANGE])
+                .allowed_header(CONTENT_TYPE)
+                .max_age(None);
+
+            let mut app = App::new()
+                .wrap(cors)
+                .wrap(auth.clone())
+                .wrap(HlsHeadersMiddleware);
+
+            app = app.service(Files::new("/stream", stream_dir.clone()).use_etag(false));
+
+            if let Some(static_dir) = static_dir.clone() {
+                app = app.service(Files::new("/", static_dir).index_file("index.html"));
+            }
+
+            app
+        })
+        .bind(self.config.server.bind.as_deref().unwrap_or("0.0.0.0:8080"))?
+        .run();
+
+        let server_handle = server.handle();
+
+        tokio::spawn(async move {
+            if let Err(e) = server.await {
+                error!(target = "web_server", "Server error: {}", e);
+            }
+        });
+
+        Ok(server_handle)
+    }
+
+    async fn run_audio_monitor(&mut self) -> Result<AudioMonitor> {
+        let (tx, mut _rx) = channel::<f32>(10); // TODO
+
+        let mut monitor = AudioMonitor::new(
+            AudioMonitorContext::new(
+                self.config
+                    .hardware
+                    .mic
+                    .sample_format
+                    .clone()
+                    .unwrap_or(FfmpegAudioSampleFormat::from_str(
+                        FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT,
+                    )?)
+                    .into(),
+                self.config
+                    .hardware
+                    .mic
+                    .sample_rate
+                    .unwrap_or(FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE),
+                self.config.hardware.mic.channels.unwrap_or(1),
+                self.config.hardware.mic.device.clone(),
+                self.config.monitoring.rms_threshold,
+            ),
+            Some(tx),
+        );
+
+        let _ = monitor.start().await;
+
+        Ok(monitor)
     }
 }

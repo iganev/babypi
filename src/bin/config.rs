@@ -111,7 +111,6 @@ async fn main() -> Result<()> {
             },
             server: TomlConfigServerV1 {
                 bind: Some("0.0.0.0:8080".to_string()),
-                auth: Some(true),
                 bearer_token: Some("bearer_token".to_string()),
                 basic_username:Some("admin".to_string()),
                 basic_password: Some("password".to_string()), 

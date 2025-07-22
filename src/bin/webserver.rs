@@ -1,6 +1,12 @@
 use std::str::FromStr;
 
-use actix_web::{dev::ServerHandle, App, HttpServer};
+use actix_cors::Cors;
+use actix_files::Files;
+use actix_web::{
+    dev::ServerHandle,
+    http::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, RANGE},
+    App, HttpServer,
+};
 use babypi::server::middleware::{auth::AuthMiddleware, headers::HlsHeadersMiddleware};
 use clap::Parser;
 use tracing::{error, info};
@@ -39,6 +45,8 @@ async fn main() -> Result<()> {
 
     handle.stop(true).await;
 
+    info!("Done");
+
     Ok(())
 }
 
@@ -60,11 +68,19 @@ async fn webserver(
     let stream_dir = stream_dir.to_string();
 
     let server = HttpServer::new(move || {
+        let cors = Cors::default()
+            .allow_any_origin()
+            .allowed_methods(vec!["GET", "POST", "HEAD", "OPTIONS"])
+            .allowed_headers(vec![AUTHORIZATION, ACCEPT, RANGE])
+            .allowed_header(CONTENT_TYPE)
+            .max_age(None);
+
         App::new()
+            .wrap(cors)
             .wrap(auth.clone())
             .wrap(HlsHeadersMiddleware)
-            .service(actix_files::Files::new("/stream", stream_dir.clone()).use_etag(false))
-            .service(actix_files::Files::new("/", static_dir.clone()).index_file("index.html"))
+            .service(Files::new("/stream", stream_dir.clone()).use_etag(false))
+            .service(Files::new("/", static_dir.clone()).index_file("index.html"))
     })
     .bind(bind)?
     .run();

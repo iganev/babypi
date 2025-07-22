@@ -1,9 +1,6 @@
 use actix_web::{
     dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
-    http::header::{
-        HeaderValue, ACCEPT_RANGES, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
-        ACCESS_CONTROL_ALLOW_ORIGIN, CACHE_CONTROL, CONTENT_TYPE,
-    },
+    http::header::{HeaderValue, ACCEPT_RANGES, CACHE_CONTROL, CONTENT_TYPE},
     Error, Result,
 };
 use futures_util::future::LocalBoxFuture;
@@ -69,17 +66,17 @@ where
                     .insert(ACCEPT_RANGES, HeaderValue::from_static("bytes"));
             }
 
-            // CORS
-            res.headers_mut()
-                .insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
-            res.headers_mut().insert(
-                ACCESS_CONTROL_ALLOW_METHODS,
-                HeaderValue::from_static("GET, POST, HEAD, OPTIONS"),
-            );
-            res.headers_mut().insert(
-                ACCESS_CONTROL_ALLOW_HEADERS,
-                HeaderValue::from_static("Range, Authorization"),
-            );
+            // // CORS
+            // res.headers_mut()
+            //     .insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+            // res.headers_mut().insert(
+            //     ACCESS_CONTROL_ALLOW_METHODS,
+            //     HeaderValue::from_static("GET, POST, HEAD, OPTIONS"),
+            // );
+            // res.headers_mut().insert(
+            //     ACCESS_CONTROL_ALLOW_HEADERS,
+            //     HeaderValue::from_static("Range, Authorization"),
+            // );
 
             Ok(res)
         })

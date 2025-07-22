@@ -52,7 +52,6 @@ pub struct TomlConfigStreamV1 {
 pub struct TomlConfigServerV1 {
     pub bind: Option<String>,
     pub webroot: Option<String>,
-    pub auth: Option<bool>,
     pub bearer_token: Option<String>,
     pub basic_username: Option<String>,
     pub basic_password: Option<String>,
