@@ -2,8 +2,11 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
 use crate::ffmpeg::audio::FfmpegAudioSampleFormat;
+use crate::telemetry::events::Event;
 use anyhow::anyhow;
 use anyhow::Result;
 use libpulse_binding as pulse;
@@ -80,7 +83,7 @@ pub struct AudioMonitor {
     handle: Option<JoinHandle<()>>,
     shutdown_signal: Arc<AtomicBool>,
     retry_count: u8,
-    channel: Option<Sender<f32>>,
+    channel: Option<Sender<Event>>,
 }
 
 impl Default for AudioMonitor {
@@ -96,7 +99,7 @@ impl Default for AudioMonitor {
 }
 
 impl AudioMonitor {
-    pub fn new(context: AudioMonitorContext, channel: Option<Sender<f32>>) -> Self {
+    pub fn new(context: AudioMonitorContext, channel: Option<Sender<Event>>) -> Self {
         Self {
             context: Arc::new(context),
             channel,
@@ -207,7 +210,13 @@ impl AudioMonitor {
                             info!(target = "audio_monitor", "RMS = {}", rms);
 
                             if let Some(channel) = &channel {
-                                let _ = channel.send(rms);
+                                let _ = channel.send(Event::Monitor {
+                                    time: SystemTime::now()
+                                        .duration_since(UNIX_EPOCH)
+                                        .unwrap_or(Duration::new(0, 0))
+                                        .as_secs(),
+                                    rms,
+                                });
                             }
                         } else {
                             debug!(target = "audio_monitor", "RMS = {}", rms);
@@ -232,7 +241,13 @@ impl AudioMonitor {
                             info!(target = "audio_monitor", "RMS = {}", rms);
 
                             if let Some(channel) = &channel {
-                                let _ = channel.send(rms);
+                                let _ = channel.send(Event::Monitor {
+                                    time: SystemTime::now()
+                                        .duration_since(UNIX_EPOCH)
+                                        .unwrap_or(Duration::new(0, 0))
+                                        .as_secs(),
+                                    rms,
+                                });
                             }
                         } else {
                             debug!(target = "audio_monitor", "RMS = {}", rms);
@@ -264,7 +279,13 @@ impl AudioMonitor {
                             info!(target = "audio_monitor", "RMS = {}", rms);
 
                             if let Some(channel) = &channel {
-                                let _ = channel.send(rms);
+                                let _ = channel.send(Event::Monitor {
+                                    time: SystemTime::now()
+                                        .duration_since(UNIX_EPOCH)
+                                        .unwrap_or(Duration::new(0, 0))
+                                        .as_secs(),
+                                    rms,
+                                });
                             }
                         } else {
                             debug!(target = "audio_monitor", "RMS = {}", rms);

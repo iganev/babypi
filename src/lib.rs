@@ -4,11 +4,15 @@ use std::str::FromStr;
 use actix_cors::Cors;
 use actix_files::Files;
 use actix_web::dev::ServerHandle;
+use actix_web::http::header::ContentType;
 use actix_web::http::header::ACCEPT;
 use actix_web::http::header::AUTHORIZATION;
 use actix_web::http::header::CONTENT_TYPE;
 use actix_web::http::header::RANGE;
+use actix_web::mime;
+use actix_web::web;
 use actix_web::App;
+use actix_web::HttpResponse;
 use actix_web::HttpServer;
 use anyhow::Result;
 
@@ -22,7 +26,6 @@ use ffmpeg::FFMPEG_DEFAULT_STREAM_DIR;
 use live_stream::LiveStream;
 use rpicam::Rpicam;
 use rpicam::RpicamDeviceMode;
-use tokio::sync::broadcast::channel;
 use tracing::error;
 
 use crate::audio_monitor::AudioMonitor;
@@ -32,6 +35,8 @@ use crate::ffmpeg::audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT;
 use crate::ffmpeg::audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE;
 use crate::server::middleware::auth::AuthMiddleware;
 use crate::server::middleware::headers::HlsHeadersMiddleware;
+use crate::server::DEFAULT_MICRO_UI;
+use crate::telemetry::events::EventDispatcher;
 
 pub mod audio_monitor;
 pub mod config;
@@ -43,6 +48,7 @@ pub mod mmwave;
 pub mod process_control;
 pub mod rpicam;
 pub mod server;
+pub mod telemetry;
 
 /// Check if file exists
 pub async fn file_exists(file: impl AsRef<Path>) -> bool {
@@ -52,6 +58,7 @@ pub async fn file_exists(file: impl AsRef<Path>) -> bool {
 #[derive(Debug)]
 pub struct BabyPi {
     config: TomlConfig,
+    events: EventDispatcher,
 
     live_stream: Option<LiveStream>,
     web_server: Option<ServerHandle>,
@@ -62,6 +69,7 @@ impl BabyPi {
     pub fn new(config: TomlConfig) -> Self {
         Self {
             config,
+            events: EventDispatcher::new(),
             live_stream: None,
             web_server: None,
             audio_monitor: None,
@@ -219,6 +227,15 @@ impl BabyPi {
 
             if let Some(static_dir) = static_dir.clone() {
                 app = app.service(Files::new("/", static_dir).index_file("index.html"));
+            } else {
+                app = app.route(
+                    "/",
+                    web::route().to(|| async {
+                        HttpResponse::Ok()
+                            .insert_header(ContentType(mime::TEXT_HTML))
+                            .body(DEFAULT_MICRO_UI)
+                    }),
+                );
             }
 
             app
@@ -238,8 +255,6 @@ impl BabyPi {
     }
 
     async fn run_audio_monitor(&mut self) -> Result<AudioMonitor> {
-        let (tx, mut _rx) = channel::<f32>(10); // TODO
-
         let mut monitor = AudioMonitor::new(
             AudioMonitorContext::new(
                 self.config
@@ -260,7 +275,7 @@ impl BabyPi {
                 self.config.hardware.mic.device.clone(),
                 self.config.monitoring.rms_threshold,
             ),
-            Some(tx),
+            Some(self.events.get_sender()),
         );
 
         let _ = monitor.start().await;

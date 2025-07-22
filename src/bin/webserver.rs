@@ -4,10 +4,16 @@ use actix_cors::Cors;
 use actix_files::Files;
 use actix_web::{
     dev::ServerHandle,
-    http::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, RANGE},
-    App, HttpServer,
+    http::header::{ContentType, ACCEPT, AUTHORIZATION, CONTENT_TYPE, RANGE},
+    mime, web, App, HttpResponse, HttpServer,
 };
-use babypi::server::middleware::{auth::AuthMiddleware, headers::HlsHeadersMiddleware};
+use babypi::{
+    ffmpeg::FFMPEG_DEFAULT_STREAM_DIR,
+    server::{
+        middleware::{auth::AuthMiddleware, headers::HlsHeadersMiddleware},
+        DEFAULT_MICRO_UI,
+    },
+};
 use clap::Parser;
 use tracing::{error, info};
 use tracing_subscriber::{util::SubscriberInitExt, FmtSubscriber};
@@ -29,8 +35,8 @@ async fn main() -> Result<()> {
 
     let handle = webserver(
         "0.0.0.0:8080",
-        "/home/ivan/IdeaProjects/babypi/docs",
-        "/home/ivan/public_html/babypi_stream",
+        None,
+        Some("/home/ivan/public_html/babypi_stream"),
         Some("admin"),
         Some("123456"),
         Some("token"),
@@ -52,8 +58,8 @@ async fn main() -> Result<()> {
 
 async fn webserver(
     bind: &str,
-    static_dir: &str,
-    stream_dir: &str,
+    static_dir: Option<&str>,
+    stream_dir: Option<&str>,
     username: Option<&str>,
     password: Option<&str>,
     token: Option<&str>,
@@ -64,8 +70,8 @@ async fn webserver(
         token.map(str::to_string),
     );
 
-    let static_dir = static_dir.to_string();
-    let stream_dir = stream_dir.to_string();
+    let static_dir = static_dir.map(str::to_string);
+    let stream_dir = stream_dir.unwrap_or(FFMPEG_DEFAULT_STREAM_DIR).to_string();
 
     let server = HttpServer::new(move || {
         let cors = Cors::default()
@@ -75,12 +81,26 @@ async fn webserver(
             .allowed_header(CONTENT_TYPE)
             .max_age(None);
 
-        App::new()
+        let mut app = App::new()
             .wrap(cors)
             .wrap(auth.clone())
             .wrap(HlsHeadersMiddleware)
-            .service(Files::new("/stream", stream_dir.clone()).use_etag(false))
-            .service(Files::new("/", static_dir.clone()).index_file("index.html"))
+            .service(Files::new("/stream", stream_dir.clone()).use_etag(false));
+
+        if let Some(static_dir) = static_dir.clone() {
+            app = app.service(Files::new("/", static_dir).index_file("index.html"));
+        } else {
+            app = app.route(
+                "/",
+                web::route().to(|| async {
+                    HttpResponse::Ok()
+                        .insert_header(ContentType(mime::TEXT_HTML))
+                        .body(DEFAULT_MICRO_UI)
+                }),
+            );
+        }
+
+        app
     })
     .bind(bind)?
     .run();

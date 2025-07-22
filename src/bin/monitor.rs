@@ -3,6 +3,7 @@ use std::{str::FromStr, time::Duration};
 use babypi::{
     audio_monitor::{AudioMonitor, AudioMonitorContext},
     ffmpeg::audio::FfmpegAudioSampleFormat,
+    telemetry::events::Event,
 };
 use tokio::sync::broadcast::channel;
 use tracing::info;
@@ -19,7 +20,7 @@ async fn main() -> Result<()> {
         .finish()
         .init();
 
-    let (tx, mut rx) = channel::<f32>(10);
+    let (tx, mut rx) = channel::<Event>(10);
 
     let mut monitor = AudioMonitor::new(
         AudioMonitorContext::new(
@@ -39,8 +40,10 @@ async fn main() -> Result<()> {
             _ = tokio::time::sleep(Duration::from_secs(1)) => {
                 info!("State: {}", monitor.is_running());
             }
-            rms = rx.recv() => {
-                info!("RMS: {:.3}", rms.unwrap_or(0f32));
+            event = rx.recv() => {
+                if let Ok(Event::Monitor { time: _, rms }) = event {
+                    info!("RMS: {:.3}", rms);
+                }
             }
             _ = tokio::signal::ctrl_c() => {
                 info!("Shutdown signal received");
