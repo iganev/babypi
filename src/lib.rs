@@ -35,6 +35,7 @@ use crate::ffmpeg::audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_FORMAT;
 use crate::ffmpeg::audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE;
 use crate::server::middleware::auth::AuthMiddleware;
 use crate::server::middleware::headers::HlsHeadersMiddleware;
+use crate::server::websocket::ws_handler_telemetry;
 use crate::server::DEFAULT_MICRO_UI;
 use crate::telemetry::events::EventDispatcher;
 
@@ -210,6 +211,10 @@ impl BabyPi {
             .and_then(|p| p.to_str().map(str::to_string))
             .unwrap_or(FFMPEG_DEFAULT_STREAM_DIR.to_string());
 
+        let telemetry_config = self.config.telemetry.clone();
+
+        let events = self.events.clone();
+
         let server = HttpServer::new(move || {
             let cors = Cors::default()
                 .allow_any_origin()
@@ -219,11 +224,16 @@ impl BabyPi {
                 .max_age(None);
 
             let mut app = App::new()
+                .app_data(web::Data::new(events.clone()))
                 .wrap(cors)
                 .wrap(auth.clone())
                 .wrap(HlsHeadersMiddleware);
 
             app = app.service(Files::new("/stream", stream_dir.clone()).use_etag(false));
+
+            if telemetry_config.enabled {
+                app = app.route("/telemetry", web::get().to(ws_handler_telemetry));
+            }
 
             if let Some(static_dir) = static_dir.clone() {
                 app = app.service(Files::new("/", static_dir).index_file("index.html"));
@@ -278,7 +288,7 @@ impl BabyPi {
             Some(self.events.get_sender()),
         );
 
-        let _ = monitor.start().await;
+        monitor.start().await?;
 
         Ok(monitor)
     }

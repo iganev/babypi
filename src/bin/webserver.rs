@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
 
 use actix_cors::Cors;
 use actix_files::Files;
@@ -11,8 +11,10 @@ use babypi::{
     ffmpeg::FFMPEG_DEFAULT_STREAM_DIR,
     server::{
         middleware::{auth::AuthMiddleware, headers::HlsHeadersMiddleware},
+        websocket::ws_handler_telemetry,
         DEFAULT_MICRO_UI,
     },
+    telemetry::events::EventDispatcher,
 };
 use clap::Parser;
 use tracing::{error, info};
@@ -33,7 +35,11 @@ async fn main() -> Result<()> {
         .finish()
         .init();
 
+    // Events
+    let events = EventDispatcher::new();
+
     let handle = webserver(
+        &events,
         "0.0.0.0:8080",
         None,
         Some("/home/ivan/public_html/babypi_stream"),
@@ -42,6 +48,23 @@ async fn main() -> Result<()> {
         Some("token"),
     )
     .await?;
+
+    let sender = events.get_sender();
+
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(10));
+        let mut counter = 0;
+
+        loop {
+            interval.tick().await;
+            counter += 1;
+
+            let _ = sender.send(babypi::telemetry::events::Event::Test(format!(
+                "Test {}",
+                counter
+            )));
+        }
+    });
 
     tokio::signal::ctrl_c()
         .await
@@ -57,6 +80,7 @@ async fn main() -> Result<()> {
 }
 
 async fn webserver(
+    events: &EventDispatcher,
     bind: &str,
     static_dir: Option<&str>,
     stream_dir: Option<&str>,
@@ -73,6 +97,8 @@ async fn webserver(
     let static_dir = static_dir.map(str::to_string);
     let stream_dir = stream_dir.unwrap_or(FFMPEG_DEFAULT_STREAM_DIR).to_string();
 
+    let events = events.clone();
+
     let server = HttpServer::new(move || {
         let cors = Cors::default()
             .allow_any_origin()
@@ -82,10 +108,13 @@ async fn webserver(
             .max_age(None);
 
         let mut app = App::new()
+            .app_data(web::Data::new(events.clone()))
             .wrap(cors)
             .wrap(auth.clone())
             .wrap(HlsHeadersMiddleware)
             .service(Files::new("/stream", stream_dir.clone()).use_etag(false));
+
+        app = app.route("/telemetry", web::get().to(ws_handler_telemetry));
 
         if let Some(static_dir) = static_dir.clone() {
             app = app.service(Files::new("/", static_dir).index_file("index.html"));

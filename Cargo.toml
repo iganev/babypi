@@ -35,7 +35,7 @@ clap = { version = "4", features = ["derive"] }
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "^0.7", features = ["codec", "compat"] }
-tokio-stream = "0"
+tokio-stream = { version = "0", features = ["sync"]}
 tokio_schedule = "0"
 futures-util = "0"
 
@@ -43,7 +43,9 @@ futures-util = "0"
 nix = { version = "0", features = ["signal"] }
 
 # Web server
+actix = "0"
 actix-web = "4"
+actix-web-actors = "4"
 actix-cors = "0"
 actix-files = "0"
 actix-session = { version = "0", features = [
