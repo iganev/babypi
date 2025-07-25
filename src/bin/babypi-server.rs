@@ -36,18 +36,25 @@ async fn main() -> Result<()> {
 
     // init app
     let mut app = BabyPi::new(config);
-    let app_run = app.run();
-    tokio::pin!(app_run);
+    // let app_run = app.run();
+    // tokio::pin!(app_run);
+    app.run().await?;
 
     // run
-    tokio::select! {
-        _ = app_run => {
-            info!(target = "babypi-server", "Application exit");
-        }
-        _ = tokio::signal::ctrl_c() => {
-            info!(target = "babypi-server", "Shutdown signal received");
-        }
-    }
+    // tokio::select! {
+    //     _ = app_run => {
+    //         info!(target = "babypi-server", "Application exit");
+    //     }
+    //     _ = tokio::signal::ctrl_c() => {
+    //         info!(target = "babypi-server", "Shutdown signal received");
+    //     }
+    // }
+
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to listen for ctrl+c");
+
+    info!(target = "babypi-server", "Shutdown signal received");
 
     Ok(())
 }
