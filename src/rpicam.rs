@@ -13,6 +13,7 @@ use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 use tokio::process::Child;
 use tokio::process::Command;
+use tracing::debug;
 use tracing::error;
 use tracing::info;
 
@@ -370,7 +371,9 @@ impl Rpicam {
         }
 
         if let Some(extra_args) = self.extra_args.as_ref() {
-            args.extend_from_slice(extra_args);
+            if !extra_args.is_empty() {
+                args.extend_from_slice(extra_args);
+            }
         }
 
         let output = "-";
@@ -389,7 +392,10 @@ impl Rpicam {
     pub fn spawn(&self) -> Result<Child> {
         let args = self.build_rpicam_cmd_args();
 
-        // info!("RPICAM-VID ARGS: {:?}", args);
+        debug!(
+            target = "babypi::rpicam",
+            "Spawning {} with arguments: {:?}", RPICAM_BIN, args
+        );
 
         let child = Command::new(RPICAM_BIN)
             .args(&args)

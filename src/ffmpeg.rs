@@ -8,6 +8,7 @@ use tokio::process::{Child, Command};
 
 use anyhow::anyhow;
 use anyhow::Result;
+use tracing::debug;
 
 pub static FFMPEG_BIN: &str = "ffmpeg";
 
@@ -62,7 +63,9 @@ impl Ffmpeg {
         // inject extras
         if let Some(extra_args) = self.extra_args.as_ref() {
             if let Some(setup_args) = extra_args.setup.as_ref() {
-                args.extend_from_slice(setup_args);
+                if !setup_args.is_empty() {
+                    args.extend_from_slice(setup_args);
+                }
             }
         }
 
@@ -93,7 +96,9 @@ impl Ffmpeg {
         // inject extras
         if let Some(extra_args) = self.extra_args.as_ref() {
             if let Some(video_input_args) = extra_args.video_input.as_ref() {
-                args.extend_from_slice(video_input_args);
+                if !video_input_args.is_empty() {
+                    args.extend_from_slice(video_input_args);
+                }
             }
         }
 
@@ -141,7 +146,9 @@ impl Ffmpeg {
             // inject extras
             if let Some(extra_args) = self.extra_args.as_ref() {
                 if let Some(audio_input_args) = extra_args.audio_input.as_ref() {
-                    args.extend_from_slice(audio_input_args);
+                    if !audio_input_args.is_empty() {
+                        args.extend_from_slice(audio_input_args);
+                    }
                 }
             }
         }
@@ -151,7 +158,9 @@ impl Ffmpeg {
         // inject extras
         if let Some(extra_args) = self.extra_args.as_ref() {
             if let Some(output_args) = extra_args.output.as_ref() {
-                args.extend_from_slice(output_args);
+                if !output_args.is_empty() {
+                    args.extend_from_slice(output_args);
+                }
             }
         }
 
@@ -245,7 +254,10 @@ impl Ffmpeg {
     pub fn spawn(&self) -> Result<Child> {
         let args = self.build_ffmpeg_cmd_args();
 
-        // info!("FFMPEG ARGS: {:?}", args);
+        debug!(
+            target = "babypi::ffmpeg",
+            "Spawning {} with arguments: {:?}", FFMPEG_BIN, args
+        );
 
         let ffmpeg = Command::new(FFMPEG_BIN)
             .args(&args)
