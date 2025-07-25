@@ -393,7 +393,7 @@ impl Rpicam {
         let args = self.build_rpicam_cmd_args();
 
         debug!(
-            target = "babypi::rpicam",
+            target = "rpicam",
             "Spawning {} with arguments: {:?}", RPICAM_BIN, args
         );
 

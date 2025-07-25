@@ -255,7 +255,7 @@ impl Ffmpeg {
         let args = self.build_ffmpeg_cmd_args();
 
         debug!(
-            target = "babypi::ffmpeg",
+            target = "ffmpeg",
             "Spawning {} with arguments: {:?}", FFMPEG_BIN, args
         );
 

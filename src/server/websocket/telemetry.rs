@@ -33,10 +33,7 @@ impl TelemetryWebsocketSession {
             if Instant::now().duration_since(act.hb) > Duration::from_secs(10) {
                 ctx.stop();
 
-                info!(
-                    target = "server::websocket::telemetry",
-                    "Connection timeout"
-                );
+                info!(target = "telemetry", "Connection timeout");
 
                 return;
             }
@@ -101,40 +98,28 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for TelemetryWebsocke
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         match msg {
             Ok(ws::Message::Ping(msg)) => {
-                // debug!(target = "server::websocket::telemetry", "ping: {:?}", msg);
+                // debug!(target = "telemetry", "ping: {:?}", msg);
                 self.hb = Instant::now();
                 ctx.pong(&msg);
             }
             Ok(ws::Message::Pong(_)) => {
-                // debug!(target = "server::websocket::telemetry", "pong: {:?}", msg);
+                // debug!(target = "telemetry", "pong: {:?}", msg);
                 self.hb = Instant::now();
             }
             Ok(ws::Message::Text(text)) => {
-                info!(
-                    target = "server::websocket::telemetry",
-                    "Received text: {}", text
-                );
+                info!(target = "telemetry", "Received text: {}", text);
             }
             Ok(ws::Message::Binary(bin)) => {
-                info!(
-                    target = "server::websocket::telemetry",
-                    "Received binary: {:#?}", bin
-                );
+                info!(target = "telemetry", "Received binary: {:#?}", bin);
             }
             Ok(ws::Message::Close(reason)) => {
-                info!(
-                    target = "server::websocket::telemetry",
-                    "Connection closed: {:?}", reason
-                );
+                info!(target = "telemetry", "Connection closed: {:?}", reason);
 
                 ctx.close(reason);
                 ctx.stop();
             }
             _ => {
-                error!(
-                    target = "server::websocket::telemetry",
-                    "unknown message: {:?}", msg
-                );
+                error!(target = "telemetry", "unknown message: {:?}", msg);
 
                 ctx.stop()
             }

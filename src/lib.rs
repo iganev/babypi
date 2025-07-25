@@ -126,12 +126,12 @@ impl BabyPi {
             self.config.hardware.camera.tuning_file.clone(),
             self.config.hardware.camera.hflip.unwrap_or(false),
             self.config.hardware.camera.vflip.unwrap_or(false),
-            self.config
-                .hardware
-                .camera
-                .extra_args
-                .as_deref()
-                .map(|s| s.split(" ").map(str::to_string).collect::<Vec<String>>()),
+            self.config.hardware.camera.extra_args.as_deref().map(|s| {
+                s.split(" ")
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string)
+                    .collect::<Vec<String>>()
+            }),
         );
 
         let ffmpeg_audio =
@@ -165,30 +165,40 @@ impl BabyPi {
             || self.config.stream.extra_args_output.is_some()
         {
             Some(FfmpegExtraArgs {
-                setup: self
-                    .config
-                    .stream
-                    .extra_args_setup
-                    .as_deref()
-                    .map(|s| s.split(" ").map(str::to_string).collect::<Vec<String>>()),
+                setup: self.config.stream.extra_args_setup.as_deref().map(|s| {
+                    s.split(" ")
+                        .filter(|s| !s.is_empty())
+                        .map(str::to_string)
+                        .collect::<Vec<String>>()
+                }),
                 video_input: self
                     .config
                     .stream
                     .extra_args_video_input
                     .as_deref()
-                    .map(|s| s.split(" ").map(str::to_string).collect::<Vec<String>>()),
+                    .map(|s| {
+                        s.split(" ")
+                            .filter(|s| !s.is_empty())
+                            .map(str::to_string)
+                            .collect::<Vec<String>>()
+                    }),
                 audio_input: self
                     .config
                     .stream
                     .extra_args_audio_input
                     .as_deref()
-                    .map(|s| s.split(" ").map(str::to_string).collect::<Vec<String>>()),
-                output: self
-                    .config
-                    .stream
-                    .extra_args_output
-                    .as_deref()
-                    .map(|s| s.split(" ").map(str::to_string).collect::<Vec<String>>()),
+                    .map(|s| {
+                        s.split(" ")
+                            .filter(|s| !s.is_empty())
+                            .map(str::to_string)
+                            .collect::<Vec<String>>()
+                    }),
+                output: self.config.stream.extra_args_output.as_deref().map(|s| {
+                    s.split(" ")
+                        .filter(|s| !s.is_empty())
+                        .map(str::to_string)
+                        .collect::<Vec<String>>()
+                }),
             })
         } else {
             None
