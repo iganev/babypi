@@ -56,5 +56,7 @@ async fn main() -> Result<()> {
 
     info!(target = "babypi-server", "Shutdown signal received");
 
+    app.stop().await?;
+
     Ok(())
 }

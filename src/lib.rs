@@ -88,6 +88,22 @@ impl BabyPi {
         Ok(())
     }
 
+    pub async fn stop(&mut self) -> Result<()> {
+        if let Some(web_server) = self.web_server.take() {
+            web_server.stop(true).await;
+        }
+
+        if let Some(live_stream) = self.live_stream.take() {
+            live_stream.stop().await;
+        }
+
+        if let Some(mut audio_monitor) = self.audio_monitor.take() {
+            audio_monitor.stop().await;
+        }
+
+        Ok(())
+    }
+
     async fn run_live_stream(&self) -> Result<LiveStream> {
         let mode = if self.config.hardware.camera.width.is_some()
             && self.config.hardware.camera.height.is_some()
