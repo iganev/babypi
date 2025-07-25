@@ -97,7 +97,7 @@ impl BabyPi {
                 "selected",
                 self.config.hardware.camera.width.unwrap(),
                 self.config.hardware.camera.height.unwrap(),
-                self.config.hardware.camera.height.unwrap(),
+                self.config.hardware.camera.fps.unwrap(),
             ))
         } else {
             None
