@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
         Some(FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE.to_string()),
     );
 
-    let ffmpeg = Ffmpeg::new("/var/stream", Some(ffmpeg_audio), None);
+    let ffmpeg = Ffmpeg::new("/var/stream", Some(ffmpeg_audio), None, true);
 
     let live_stream = LiveStream::new(cam, ffmpeg);
 

@@ -35,7 +35,7 @@ async fn main() -> Result<()> {
     config.validate().await?;
 
     // init app
-    let mut app = BabyPi::new(config);
+    let mut app = BabyPi::new(config, args.verbose);
     // let app_run = app.run();
     // tokio::pin!(app_run);
     app.run().await?;

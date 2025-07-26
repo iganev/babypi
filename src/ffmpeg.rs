@@ -31,6 +31,7 @@ pub struct Ffmpeg {
     pub stream_dir: PathBuf,
     pub audio_input: Option<FfmpegAudio>,
     pub extra_args: Option<FfmpegExtraArgs>,
+    pub verbose: bool,
 }
 
 impl Default for Ffmpeg {
@@ -40,6 +41,7 @@ impl Default for Ffmpeg {
                 .expect("Failed to build path to stream playlist"),
             audio_input: None,
             extra_args: None,
+            verbose: false,
         }
     }
 }
@@ -49,11 +51,13 @@ impl Ffmpeg {
         stream_dir: impl Into<PathBuf>,
         audio_input: Option<FfmpegAudio>,
         extra_args: Option<FfmpegExtraArgs>,
+        verbose: bool,
     ) -> Self {
         Self {
             stream_dir: stream_dir.into(),
             audio_input,
             extra_args,
+            verbose,
         }
     }
 
@@ -72,10 +76,12 @@ impl Ffmpeg {
         // auto-yes
         args.push("-y".to_string());
 
-        // suppress most output
-        args.push("-v".to_string());
-        args.push("quiet".to_string());
-        // args.push("-stats".to_string());
+        if !self.verbose {
+            // suppress most output
+            args.push("-v".to_string());
+            args.push("quiet".to_string());
+            // args.push("-stats".to_string());
+        }
 
         // read more input before deciding on params
         args.push("-probesize".to_string());

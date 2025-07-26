@@ -10,6 +10,7 @@ use tokio::process::Child;
 use tokio::sync::oneshot::channel as oneshot_channel;
 use tokio::sync::oneshot::Receiver;
 use tokio::task::JoinHandle;
+use tracing::debug;
 use tracing::error;
 use tracing::info;
 use tracing::warn;
@@ -74,7 +75,7 @@ impl ProcessControl {
             }) {
                 let line = line.replace("\r", "");
 
-                info!(
+                debug!(
                     target = "process_control",
                     "PROC[{}] STDERR: {}", &log_id, line
                 );

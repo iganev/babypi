@@ -129,7 +129,7 @@ async fn main() -> Result<()> {
         Some(FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE.to_string()),
     );
 
-    let mut ffmpeg = Ffmpeg::new("/var/stream", Some(ffmpeg_audio), None).spawn()?;
+    let mut ffmpeg = Ffmpeg::new("/var/stream", Some(ffmpeg_audio), None, true).spawn()?;
 
     let mut ffmpeg_stdin = ffmpeg
         .stdin

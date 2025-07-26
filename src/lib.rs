@@ -60,6 +60,7 @@ pub async fn file_exists(file: impl AsRef<Path>) -> bool {
 #[derive(Debug)]
 pub struct BabyPi {
     config: TomlConfig,
+    verbose: bool,
     events: EventDispatcher,
 
     live_stream: Option<LiveStream>,
@@ -68,9 +69,10 @@ pub struct BabyPi {
 }
 
 impl BabyPi {
-    pub fn new(config: TomlConfig) -> Self {
+    pub fn new(config: TomlConfig, verbose: bool) -> Self {
         Self {
             config,
+            verbose,
             events: EventDispatcher::new(),
             live_stream: None,
             web_server: None,
@@ -213,6 +215,7 @@ impl BabyPi {
                 .unwrap_or(FFMPEG_DEFAULT_STREAM_DIR.into()),
             ffmpeg_audio,
             extra_args,
+            self.verbose,
         );
 
         let live_stream = LiveStream::new(cam, ffmpeg);
