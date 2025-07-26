@@ -2,8 +2,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
 
 use crate::ffmpeg::audio::FfmpegAudioSampleFormat;
 use crate::telemetry::events::Event;
@@ -136,6 +134,8 @@ impl AudioMonitor {
 
             self.handle = Some(handle);
 
+            info!(target = "audio_monitor", "Audio monitor started");
+
             return Ok(());
         }
     }
@@ -207,19 +207,13 @@ impl AudioMonitor {
                         let rms = calculate_rms(&normalized_buffer);
 
                         if context.rms_threshold.is_some_and(|rms_t| rms > rms_t) {
-                            info!(target = "audio_monitor", "RMS = {}", rms);
+                            debug!(target = "audio_monitor", "RMS = {}; TRIGGER = true", rms);
 
                             if let Some(channel) = &channel {
-                                let _ = channel.send(Event::Monitor {
-                                    time: SystemTime::now()
-                                        .duration_since(UNIX_EPOCH)
-                                        .unwrap_or(Duration::new(0, 0))
-                                        .as_secs(),
-                                    rms,
-                                });
+                                let _ = channel.send(Event::AudioMonitor { rms });
                             }
                         } else {
-                            debug!(target = "audio_monitor", "RMS = {}", rms);
+                            debug!(target = "audio_monitor", "RMS = {};  TRIGGER = false", rms);
                         }
                     }
                 }
@@ -238,19 +232,13 @@ impl AudioMonitor {
                         let rms = calculate_rms(&buffer);
 
                         if context.rms_threshold.is_some_and(|rms_t| rms > rms_t) {
-                            info!(target = "audio_monitor", "RMS = {}", rms);
+                            debug!(target = "audio_monitor", "RMS = {}; TRIGGER = true", rms);
 
                             if let Some(channel) = &channel {
-                                let _ = channel.send(Event::Monitor {
-                                    time: SystemTime::now()
-                                        .duration_since(UNIX_EPOCH)
-                                        .unwrap_or(Duration::new(0, 0))
-                                        .as_secs(),
-                                    rms,
-                                });
+                                let _ = channel.send(Event::AudioMonitor { rms });
                             }
                         } else {
-                            debug!(target = "audio_monitor", "RMS = {}", rms);
+                            debug!(target = "audio_monitor", "RMS = {};  TRIGGER = false", rms);
                         }
                     }
                 }
@@ -276,19 +264,13 @@ impl AudioMonitor {
                         let rms = calculate_rms(&normalized_buffer);
 
                         if context.rms_threshold.is_some_and(|rms_t| rms > rms_t) {
-                            info!(target = "audio_monitor", "RMS = {}", rms);
+                            debug!(target = "audio_monitor", "RMS = {}; TRIGGER = true", rms);
 
                             if let Some(channel) = &channel {
-                                let _ = channel.send(Event::Monitor {
-                                    time: SystemTime::now()
-                                        .duration_since(UNIX_EPOCH)
-                                        .unwrap_or(Duration::new(0, 0))
-                                        .as_secs(),
-                                    rms,
-                                });
+                                let _ = channel.send(Event::AudioMonitor { rms });
                             }
                         } else {
-                            debug!(target = "audio_monitor", "RMS = {}", rms);
+                            debug!(target = "audio_monitor", "RMS = {};  TRIGGER = false", rms);
                         }
                     }
                 }
@@ -309,6 +291,8 @@ impl AudioMonitor {
         if let Some(handle) = self.handle.take() {
             let _ = handle.await;
         }
+
+        info!(target = "audio_monitor", "Audio monitor stopped");
     }
 
     /// Are we monitoring?

@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use crate::serde_stuff::float_precision_two;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::{self, Receiver, Sender};
 use tokio::sync::RwLock;
@@ -8,6 +9,7 @@ use tracing::log::Level;
 pub const EVENT_DISPATCHER_CAPACITY: usize = 16;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Service {
     VideoStream,
     WebServer,
@@ -15,6 +17,7 @@ pub enum Service {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Status {
     Running,
     Disabled,
@@ -22,12 +25,19 @@ pub enum Status {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Event {
     Test(String),
 
-    ServiceStatus { service: Service, status: Status },
+    ServiceStatus {
+        service: Service,
+        status: Status,
+    },
 
-    Monitor { time: u64, rms: f32 },
+    AudioMonitor {
+        #[serde(with = "float_precision_two")]
+        rms: f32,
+    },
 }
 
 #[derive(Debug)]

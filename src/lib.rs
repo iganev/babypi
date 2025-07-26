@@ -48,6 +48,7 @@ pub mod mlx90640;
 pub mod mmwave;
 pub mod process_control;
 pub mod rpicam;
+pub mod serde_stuff;
 pub mod server;
 pub mod telemetry;
 

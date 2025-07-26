@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
                 info!("State: {}", monitor.is_running());
             }
             event = rx.recv() => {
-                if let Ok(Event::Monitor { time: _, rms }) = event {
+                if let Ok(Event::AudioMonitor { rms }) = event {
                     info!("RMS: {:.3}", rms);
                 }
             }
