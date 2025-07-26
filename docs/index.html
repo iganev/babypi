@@ -5,8 +5,122 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BabyPi MicroUI</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.6.7/hls.min.js"></script>
+    <script type="text/javascript">
+        function createWebSocket(url, options = {}) {
+            const reconnectInterval = options.reconnectInterval || 5000;
+            const maxReconnectAttempts = options.maxReconnectAttempts || 5;
+            
+            let ws = null;
+            let reconnectAttempts = 0;
+            let reconnectTimer = null;
+            let isConnecting = false;
+            
+            function connect() {
+                if (isConnecting) return;
+                
+                isConnecting = true;
+                console.log('Connecting to WebSocket...');
+                
+                ws = new WebSocket(url);
+                
+                ws.onopen = function(event) {
+                    console.log('WebSocket connected');
+                    isConnecting = false;
+                    reconnectAttempts = 0;
+                    
+                    if (options.onOpen) options.onOpen(event);
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+
+                        if (data.type === 'ping') {
+                            send({ type: 'pong' });
+                            return;
+                        }
+
+                        if (options.onMessage) options.onMessage(data);
+                    } catch (error) {
+                        console.error('Error parsing message:', error);
+                    }
+                };
+                
+                ws.onclose = function(event) {
+                    console.log('WebSocket disconnected');
+                    isConnecting = false;
+                    
+                    if (options.onClose) options.onClose(event);
+                    
+                    // Auto-reconnect if not a normal closure
+                    if (event.code !== 1000) {
+                        scheduleReconnect();
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    isConnecting = false;
+                    
+                    if (options.onError) options.onError(error);
+                };
+            }
+            
+            function scheduleReconnect() {
+                if (reconnectAttempts >= maxReconnectAttempts) {
+                    console.error('Max reconnection attempts reached');
+                    return;
+                }
+                
+                reconnectAttempts++;
+                console.log(`Reconnecting in ${reconnectInterval}ms (attempt ${reconnectAttempts})`);
+                
+                reconnectTimer = setTimeout(connect, reconnectInterval);
+            }
+            
+            function send(message) {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    const jsonMessage = typeof message === 'string' ? message : JSON.stringify(message);
+                    ws.send(jsonMessage);
+                    return true;
+                }
+                console.warn('WebSocket not connected');
+                return false;
+            }
+            
+            function close() {
+                if (reconnectTimer) {
+                    clearTimeout(reconnectTimer);
+                    reconnectTimer = null;
+                }
+                if (ws) {
+                    ws.close(1000);
+                }
+            }
+            
+            function isConnected() {
+                return ws && ws.readyState === WebSocket.OPEN;
+            }
+            
+            // Start connecting
+            connect();
+            
+            // Return public API
+            return {
+                send,
+                close,
+                isConnected
+            };
+        }
+
+        function getWebSocketUrl(path = '') {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            return `${protocol}//${host}${path}`;
+        }
+    </script>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; }
+        body { margin: 0; padding: 0; overflow: scroll; }
         video { width: 100%; height: 100vh; }
     </style>
 </head>
@@ -32,7 +146,31 @@
                     video.play();
                 });
             }
-        });
+
+            //
+
+            const socket = createWebSocket(getWebSocketUrl('/telemetry'), {
+                reconnectInterval: 3000,
+                maxReconnectAttempts: 10,
+                
+                onMessage: function(data) {
+                    console.log('Received:', data);
+                },
+                
+                onOpen: function() {
+                    console.log('Connected!');
+                    socket.send({ message: 'Hello Server!' });
+                },
+                
+                onClose: function() {
+                    console.log('Disconnected');
+                },
+                
+                onError: function(error) {
+                    console.log('Error:', error);
+                }
+                });
+            });
     </script>
 </body>
 </html>
