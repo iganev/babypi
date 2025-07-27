@@ -34,6 +34,10 @@ pub enum Event {
         status: Status,
     },
 
+    RawFrameData {
+        data: Vec<u8>,
+    },
+
     AudioMonitor {
         #[serde(with = "float_precision_two")]
         rms: f32,

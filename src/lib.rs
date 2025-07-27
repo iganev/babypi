@@ -218,7 +218,7 @@ impl BabyPi {
             self.verbose,
         );
 
-        let live_stream = LiveStream::new(cam, ffmpeg);
+        let live_stream = LiveStream::new(cam, ffmpeg, self.events.clone());
 
         live_stream.start().await;
 

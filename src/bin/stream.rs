@@ -2,11 +2,14 @@ use std::{path::PathBuf, str::FromStr, time::Duration};
 
 use babypi::{
     ffmpeg::{
-        audio::FfmpegAudio, audio::FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE,
-        audio::FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE, Ffmpeg,
+        audio::{
+            FfmpegAudio, FFMPEG_DEFAULT_AUDIO_OUTPUT_BITRATE, FFMPEG_DEFAULT_AUDIO_SAMPLE_RATE,
+        },
+        Ffmpeg,
     },
     live_stream::LiveStream,
     rpicam::{Rpicam, RpicamCodec},
+    telemetry::events::EventDispatcher,
 };
 use tracing::info;
 use tracing_subscriber::{util::SubscriberInitExt, FmtSubscriber};
@@ -44,7 +47,7 @@ async fn main() -> Result<()> {
 
     let ffmpeg = Ffmpeg::new("/var/stream", Some(ffmpeg_audio), None, true);
 
-    let live_stream = LiveStream::new(cam, ffmpeg);
+    let live_stream = LiveStream::new(cam, ffmpeg, EventDispatcher::new());
 
     live_stream.start().await;
 

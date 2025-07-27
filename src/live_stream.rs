@@ -3,10 +3,14 @@ use std::time::Duration;
 
 use crate::ffmpeg::FFMPEG_BIN;
 use crate::rpicam::RPICAM_BIN;
+use crate::telemetry::events::EventDispatcher;
 use crate::{ffmpeg::Ffmpeg, process_control::ProcessControl, rpicam::Rpicam};
 use anyhow::anyhow;
 use anyhow::Result;
-use tokio::sync::RwLock;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::process::{ChildStdin, ChildStdout};
+use tokio::sync::broadcast::error::RecvError;
+use tokio::sync::{broadcast, RwLock};
 use tokio::task::JoinHandle;
 use tracing::{error, info, warn};
 
@@ -25,9 +29,14 @@ struct LiveStreamState {
 }
 
 impl LiveStreamState {
-    pub async fn start(&mut self, rpicam: &Rpicam, ffmpeg: &Ffmpeg) -> Result<()> {
+    pub async fn start(
+        &mut self,
+        rpicam: &Rpicam,
+        ffmpeg: &Ffmpeg,
+        events: EventDispatcher,
+    ) -> Result<()> {
         let mut rpicam_child = rpicam.spawn()?;
-        let mut rpicam_stdout = rpicam_child.stdout.take().ok_or_else(|| {
+        let rpicam_stdout = rpicam_child.stdout.take().ok_or_else(|| {
             anyhow!(
                 "Failed to capture child process output for `{}`",
                 RPICAM_BIN
@@ -41,7 +50,7 @@ impl LiveStreamState {
         );
 
         let mut ffmpeg_child = ffmpeg.spawn()?;
-        let mut ffmpeg_stdin = ffmpeg_child
+        let ffmpeg_stdin = ffmpeg_child
             .stdin
             .take()
             .ok_or_else(|| anyhow!("Failed to open child process input for `{}`", FFMPEG_BIN))?;
@@ -52,12 +61,7 @@ impl LiveStreamState {
             "Bootstrapped `{}` for live streaming", FFMPEG_BIN
         );
 
-        let handle_pipe = tokio::spawn(async move {
-            tokio::io::copy(&mut rpicam_stdout, &mut ffmpeg_stdin)
-                .await
-                .ok();
-            error!(target = "live_stream", "Ran out of buffer to move around");
-        });
+        let handle_pipe = tapped_io_pipe(rpicam_stdout, ffmpeg_stdin, events);
 
         info!(target = "live_stream", "Connected IO pipe");
 
@@ -122,15 +126,17 @@ pub struct LiveStream {
     ffmpeg: Arc<Ffmpeg>,
     state: Arc<RwLock<LiveStreamState>>,
     watchdog: Arc<RwLock<Option<JoinHandle<()>>>>,
+    events: EventDispatcher,
 }
 
 impl LiveStream {
-    pub fn new(rpicam: Rpicam, ffmpeg: Ffmpeg) -> Self {
+    pub fn new(rpicam: Rpicam, ffmpeg: Ffmpeg, events: EventDispatcher) -> Self {
         Self {
             rpicam: Arc::new(rpicam),
             ffmpeg: Arc::new(ffmpeg),
             state: Arc::new(RwLock::new(LiveStreamState::default())),
             watchdog: Arc::new(RwLock::new(None)),
+            events,
         }
     }
 
@@ -139,6 +145,7 @@ impl LiveStream {
         let state_ref = self.state.clone();
         let rpicam_ref = self.rpicam.clone();
         let ffmpeg_ref = self.ffmpeg.clone();
+        let events = self.events.clone();
 
         let watchdog = tokio::spawn(async move {
             loop {
@@ -152,7 +159,10 @@ impl LiveStream {
                         let mut state_lock = state_ref.write().await;
                         state_lock.retry_increment();
 
-                        if let Err(e) = state_lock.start(&rpicam_ref, &ffmpeg_ref).await {
+                        if let Err(e) = state_lock
+                            .start(&rpicam_ref, &ffmpeg_ref, events.clone())
+                            .await
+                        {
                             error!(
                                 target = "live_stream",
                                 "Error while starting live stream: {}", e
@@ -258,4 +268,86 @@ impl LiveStream {
     pub async fn is_running(&self) -> bool {
         self.state.read().await.is_running()
     }
+}
+
+#[allow(dead_code)]
+/// OG simple IO pipe
+fn simple_io_pipe(mut rpicam_stdout: ChildStdout, mut ffmpeg_stdin: ChildStdin) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        tokio::io::copy(&mut rpicam_stdout, &mut ffmpeg_stdin)
+            .await
+            .ok();
+        error!(target = "live_stream", "Ran out of buffer to move around");
+    })
+}
+
+#[allow(dead_code)]
+fn tapped_io_pipe(
+    mut rpicam_stdout: ChildStdout,
+    mut ffmpeg_stdin: ChildStdin,
+    events: EventDispatcher,
+) -> JoinHandle<()> {
+    let events_tx = events.get_sender();
+
+    tokio::spawn(async move {
+        let (tx, mut rx_pipe) = broadcast::channel(10);
+        let mut rx_tap = tx.subscribe();
+
+        let reader_handle = tokio::spawn(async move {
+            let mut buffer = [0u8; 8192];
+            loop {
+                match rpicam_stdout.read(&mut buffer).await {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        let data = buffer[..n].to_vec();
+                        if tx.send(data).is_err() {
+                            break;
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+
+            error!(target = "live_stream", "Ran out of buffer to move around");
+        });
+
+        let pipe_handle = tokio::spawn(async move {
+            while let Ok(data) = rx_pipe.recv().await {
+                if ffmpeg_stdin.write_all(&data).await.is_err() {
+                    break;
+                }
+            }
+        });
+
+        let tap_handle = tokio::spawn(async move {
+            let mut timer = tokio::time::interval(Duration::from_secs(60)); // TODO
+            let mut buffer = Vec::new();
+            let buffer_target = (128 * 1024) as usize;
+
+            'outer_loop: loop {
+                timer.tick().await;
+
+                loop {
+                    match rx_tap.recv().await {
+                        Ok(data) => {
+                            buffer.extend_from_slice(&data);
+
+                            if buffer.len() >= buffer_target {
+                                let _ =
+                                    events_tx.send(crate::telemetry::events::Event::RawFrameData {
+                                        data: buffer.clone(),
+                                    });
+                                buffer.clear();
+                                break;
+                            }
+                        }
+                        Err(RecvError::Lagged(_)) => {}
+                        Err(RecvError::Closed) => break 'outer_loop,
+                    }
+                }
+            }
+        });
+
+        let _ = tokio::join!(reader_handle, pipe_handle, tap_handle);
+    })
 }
