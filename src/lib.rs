@@ -372,6 +372,8 @@ impl SnapshotActor {
                     debug!("Failed to encode jpg image: {}", e);
                 }
             }
+        } else {
+            debug!("Failed to parse RGB image data");
         }
 
         Ok(())
