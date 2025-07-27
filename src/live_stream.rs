@@ -366,8 +366,10 @@ fn tapped_io_pipe(
 
                     info!("Received snapshot request");
 
+                    let mut rx = rx_tap.resubscribe();
+
                     loop {
-                        match rx_tap.recv().await {
+                        match rx.recv().await {
                             Ok(data) => {
                                 buffer.extend_from_slice(&data);
 
