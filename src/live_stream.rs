@@ -357,12 +357,11 @@ fn tapped_io_pipe(
         // });
 
         let tap_handle = tokio::spawn(async move {
-            let mut buffer = Vec::new();
-
             let mut events_rx = events_rx.resubscribe();
 
             'outer_loop: while let Ok(event) = events_rx.recv().await {
                 if let crate::telemetry::events::Event::SnapshotRequest = event {
+                    let mut buffer = Vec::new();
                     let mut decoder = Decoder::new().expect("Unable to open h264 decoder");
 
                     info!("Received snapshot request");
@@ -406,6 +405,11 @@ fn tapped_io_pipe(
                                         buffer.clear();
                                         break;
                                     }
+                                } else if buffer.len() > (1024 * 1024) {
+                                    info!("Buffer exceeded 1MB, quitting...");
+
+                                    buffer.clear();
+                                    break;
                                 }
                             }
                             Err(RecvError::Lagged(_)) => {}
