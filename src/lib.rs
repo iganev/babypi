@@ -24,7 +24,7 @@ use ffmpeg::audio::FFMPEG_DEFAULT_AUDIO_DEVICE;
 use ffmpeg::Ffmpeg;
 use ffmpeg::FfmpegExtraArgs;
 use ffmpeg::FFMPEG_DEFAULT_STREAM_DIR;
-use image::codecs::jpeg::JpegEncoder;
+use image::codecs::webp::WebPEncoder;
 use image::ExtendedColorType;
 use image::RgbImage;
 use live_stream::LiveStream;
@@ -359,21 +359,25 @@ impl SnapshotActor {
             }
         }
 
-        if let Some(img) = RgbImage::from_raw(w, h, img_data) {
-            let mut img_jpg = Vec::new();
-            let mut cursor = Cursor::new(&mut img_jpg);
-            let mut encoder = JpegEncoder::new_with_quality(&mut cursor, 80);
-            match encoder.encode(&img, w, h, ExtendedColorType::Rgb8) {
-                Ok(_) => {
-                    self.events
-                        .send(telemetry::events::Event::SnapshotData { data: img_jpg });
+        if !img_data.is_empty() && w > 0 && h > 0 {
+            if let Some(img) = RgbImage::from_raw(w, h, img_data) {
+                let mut img_jpg = Vec::new();
+                let mut cursor = Cursor::new(&mut img_jpg);
+                let encoder = WebPEncoder::new_lossless(&mut cursor);
+                match encoder.encode(&img, w, h, ExtendedColorType::Rgb8) {
+                    Ok(_) => {
+                        self.events
+                            .send(telemetry::events::Event::SnapshotData { data: img_jpg });
+                    }
+                    Err(e) => {
+                        debug!("Failed to encode jpg image: {}", e);
+                    }
                 }
-                Err(e) => {
-                    debug!("Failed to encode jpg image: {}", e);
-                }
+            } else {
+                debug!("Failed to parse RGB image data");
             }
         } else {
-            debug!("Failed to parse RGB image data");
+            debug!("Failed to detect frame in nal units");
         }
 
         Ok(())
