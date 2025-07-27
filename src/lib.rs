@@ -1,6 +1,7 @@
-use std::io::Cursor;
+use std::fs::OpenOptions;
 use std::path::Path;
 use std::str::FromStr;
+use std::time::Duration;
 
 use actix_cors::Cors;
 use actix_files::Files;
@@ -26,17 +27,12 @@ use ffmpeg::FfmpegExtraArgs;
 use ffmpeg::FFMPEG_DEFAULT_STREAM_DIR;
 use image::codecs::webp::WebPEncoder;
 use image::ExtendedColorType;
-use image::RgbImage;
 use live_stream::LiveStream;
-use openh264::decoder::Decoder;
-use openh264::formats::YUVSource;
-use openh264::nal_units;
 use rpicam::Rpicam;
 use rpicam::RpicamDeviceMode;
-use tokio::fs::OpenOptions;
-use tokio::io::AsyncWriteExt;
 use tracing::debug;
 use tracing::error;
+use tracing::info;
 
 use crate::audio_monitor::AudioMonitor;
 use crate::audio_monitor::AudioMonitorContext;
@@ -98,7 +94,43 @@ impl BabyPi {
             self.audio_monitor = Some(self.run_audio_monitor().await?);
         }
 
-        tokio::spawn(SnapshotActor::new(self.events.clone()).run());
+        // tokio::spawn(SnapshotActor::new(self.events.clone()).run());
+
+        let events = self.events.clone();
+        tokio::spawn(async move {
+            let mut timer = tokio::time::interval(Duration::from_secs(60));
+            let mut rx = events.get_receiver();
+
+            loop {
+                tokio::select! {
+                    _ = timer.tick() => {
+                        events.send(telemetry::events::Event::SnapshotRequest);
+                    }
+                    Ok(event) = rx.recv() => {
+                        match event {
+                            telemetry::events::Event::SnapshotData { data } =>  {
+                                let mut file = OpenOptions::new()
+                                            .write(true)
+                                            .create(true)
+                                            .truncate(true)
+                                            .open("/var/stream/snapshot.webp").expect("Failed to open file snapshot.webp");
+
+                                let encoder = WebPEncoder::new_lossless(&mut file);
+                                match encoder.encode(&data, data.width(), data.height(), ExtendedColorType::Rgb8) {
+                                    Ok(_) => {
+                                        info!("Saved snapshot.webp");
+                                    }
+                                    Err(e) => {
+                                        debug!("Failed to encode jpg image: {}", e);
+                                    }
+                                }
+                            },
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        });
 
         Ok(())
     }
@@ -336,73 +368,73 @@ impl BabyPi {
     }
 }
 
-pub struct SnapshotActor {
-    events: EventDispatcher,
-}
+// pub struct SnapshotActor {
+//     events: EventDispatcher,
+// }
 
-impl SnapshotActor {
-    fn new(events: EventDispatcher) -> Self {
-        Self { events }
-    }
+// impl SnapshotActor {
+//     fn new(events: EventDispatcher) -> Self {
+//         Self { events }
+//     }
 
-    async fn handle_raw_frame_event(&mut self, data: Vec<u8>) -> Result<()> {
-        let mut decoder = Decoder::new()?;
-        let mut img_data = Vec::new();
-        let mut w: u32 = 0;
-        let mut h: u32 = 0;
+//     async fn handle_raw_frame_event(&mut self, data: Vec<u8>) -> Result<()> {
+//         let mut decoder = Decoder::new()?;
+//         let mut img_data = Vec::new();
+//         let mut w: u32 = 0;
+//         let mut h: u32 = 0;
 
-        for packet in nal_units(&data) {
-            if let Ok(Some(frame)) = decoder.decode(packet) {
-                img_data = vec![0; frame.dimensions().0 * frame.dimensions().1 * 3];
-                w = frame.dimensions().0 as u32;
-                h = frame.dimensions().1 as u32;
-                frame.write_rgb8(&mut img_data);
-                break;
-            }
-        }
+//         for packet in nal_units(&data) {
+//             if let Ok(Some(frame)) = decoder.decode(packet) {
+//                 img_data = vec![0; frame.dimensions().0 * frame.dimensions().1 * 3];
+//                 w = frame.dimensions().0 as u32;
+//                 h = frame.dimensions().1 as u32;
+//                 frame.write_rgb8(&mut img_data);
+//                 break;
+//             }
+//         }
 
-        if !img_data.is_empty() && w > 0 && h > 0 {
-            if let Some(img) = RgbImage::from_raw(w, h, img_data) {
-                let mut img_enc = Vec::new();
-                let mut cursor = Cursor::new(&mut img_enc);
-                let encoder = WebPEncoder::new_lossless(&mut cursor);
-                match encoder.encode(&img, w, h, ExtendedColorType::Rgb8) {
-                    Ok(_) => {
-                        // TODO TODO TODO
-                        let mut file = OpenOptions::new()
-                            .write(true)
-                            .create(true)
-                            .truncate(true)
-                            .open("/var/stream/snapshot.webp")
-                            .await?;
+//         if !img_data.is_empty() && w > 0 && h > 0 {
+//             if let Some(img) = RgbImage::from_raw(w, h, img_data) {
+//                 let mut img_enc = Vec::new();
+//                 let mut cursor = Cursor::new(&mut img_enc);
+//                 let encoder = WebPEncoder::new_lossless(&mut cursor);
+//                 match encoder.encode(&img, w, h, ExtendedColorType::Rgb8) {
+//                     Ok(_) => {
+//                         // TODO TODO TODO
+//                         let mut file = OpenOptions::new()
+//                             .write(true)
+//                             .create(true)
+//                             .truncate(true)
+//                             .open("/var/stream/snapshot.webp")
+//                             .await?;
 
-                        file.write_all(&img_enc).await?;
-                        file.flush().await?;
+//                         file.write_all(&img_enc).await?;
+//                         file.flush().await?;
 
-                        self.events
-                            .send(telemetry::events::Event::SnapshotData { data: img_enc });
-                    }
-                    Err(e) => {
-                        debug!("Failed to encode jpg image: {}", e);
-                    }
-                }
-            } else {
-                debug!("Failed to parse RGB image data");
-            }
-        } else {
-            debug!("Failed to detect frame in nal units");
-        }
+//                         self.events
+//                             .send(telemetry::events::Event::SnapshotData { data: img_enc });
+//                     }
+//                     Err(e) => {
+//                         debug!("Failed to encode jpg image: {}", e);
+//                     }
+//                 }
+//             } else {
+//                 debug!("Failed to parse RGB image data");
+//             }
+//         } else {
+//             debug!("Failed to detect frame in nal units");
+//         }
 
-        Ok(())
-    }
+//         Ok(())
+//     }
 
-    async fn run(mut self) {
-        let mut rx = self.events.get_receiver();
+//     async fn run(mut self) {
+//         let mut rx = self.events.get_receiver();
 
-        while let Ok(event) = rx.recv().await {
-            if let telemetry::events::Event::RawFrameData { data } = event {
-                let _ = self.handle_raw_frame_event(data).await;
-            }
-        }
-    }
-}
+//         while let Ok(event) = rx.recv().await {
+//             if let telemetry::events::Event::RawFrameData { data } = event {
+//                 let _ = self.handle_raw_frame_event(data).await;
+//             }
+//         }
+//     }
+// }

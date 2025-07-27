@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::serde_stuff::float_precision_two;
+use image::{ImageBuffer, Rgb};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::{self, Receiver, Sender};
 use tokio::sync::RwLock;
@@ -35,11 +36,15 @@ pub enum Event {
     },
 
     RawFrameData {
+        #[serde(skip)]
         data: Vec<u8>,
     },
 
+    SnapshotRequest,
+
     SnapshotData {
-        data: Vec<u8>,
+        #[serde(skip)]
+        data: ImageBuffer<Rgb<u8>, Vec<u8>>, //Vec<u8>,
     },
 
     AudioMonitor {

@@ -7,12 +7,16 @@ use crate::telemetry::events::EventDispatcher;
 use crate::{ffmpeg::Ffmpeg, process_control::ProcessControl, rpicam::Rpicam};
 use anyhow::anyhow;
 use anyhow::Result;
+use image::RgbImage;
+use openh264::decoder::Decoder;
+use openh264::formats::YUVSource;
+use openh264::nal_units;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::{ChildStdin, ChildStdout};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{broadcast, RwLock};
 use tokio::task::JoinHandle;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 pub const LIVE_STREAM_BOOTSTRAP_RETRY: u8 = 10;
 
@@ -288,6 +292,7 @@ fn tapped_io_pipe(
     events: EventDispatcher,
 ) -> JoinHandle<()> {
     let events_tx = events.get_sender();
+    let events_rx = events.get_receiver();
 
     tokio::spawn(async move {
         let (tx, mut rx_pipe) = broadcast::channel(10);
@@ -319,33 +324,86 @@ fn tapped_io_pipe(
             }
         });
 
+        // let tap_handle = tokio::spawn(async move {
+        //     let mut timer = tokio::time::interval(Duration::from_secs(60)); // TODO
+        //     let mut buffer = Vec::new();
+        //     let buffer_target = (128 * 1024) as usize; // TODO
+
+        //     'outer_loop: loop {
+        //         timer.tick().await;
+
+        //         loop {
+        //             match rx_tap.recv().await {
+        //                 Ok(data) => {
+        //                     buffer.extend_from_slice(&data);
+
+        //                     if buffer.len() >= buffer_target {
+        //                         let _ =
+        //                             events_tx.send(crate::telemetry::events::Event::RawFrameData {
+        //                                 data: buffer.clone(),
+        //                             });
+
+        //                         debug!("Sending {} bytes raw frame data event", buffer.len());
+
+        //                         buffer.clear();
+        //                         break;
+        //                     }
+        //                 }
+        //                 Err(RecvError::Lagged(_)) => {}
+        //                 Err(RecvError::Closed) => break 'outer_loop,
+        //             }
+        //         }
+        //     }
+        // });
+
         let tap_handle = tokio::spawn(async move {
-            let mut timer = tokio::time::interval(Duration::from_secs(60)); // TODO
             let mut buffer = Vec::new();
-            let buffer_target = (1204 * 1024) as usize; // TODO
 
-            'outer_loop: loop {
-                timer.tick().await;
+            let mut events_rx = events_rx.resubscribe();
 
-                loop {
-                    match rx_tap.recv().await {
-                        Ok(data) => {
-                            buffer.extend_from_slice(&data);
+            'outer_loop: while let Ok(event) = events_rx.recv().await {
+                if let crate::telemetry::events::Event::SnapshotRequest = event {
+                    let mut decoder = Decoder::new().expect("Unable to open h264 decoder");
 
-                            if buffer.len() >= buffer_target {
-                                let _ =
-                                    events_tx.send(crate::telemetry::events::Event::RawFrameData {
-                                        data: buffer.clone(),
-                                    });
+                    loop {
+                        match rx_tap.recv().await {
+                            Ok(data) => {
+                                buffer.extend_from_slice(&data);
 
-                                debug!("Sending {} bytes raw frame data event", buffer.len());
+                                let mut img_data = Vec::new();
+                                let mut w: u32 = 0;
+                                let mut h: u32 = 0;
 
-                                buffer.clear();
-                                break;
+                                for packet in nal_units(&buffer) {
+                                    if let Ok(Some(frame)) = decoder.decode(packet) {
+                                        img_data =
+                                            vec![
+                                                0;
+                                                frame.dimensions().0 * frame.dimensions().1 * 3
+                                            ];
+                                        w = frame.dimensions().0 as u32;
+                                        h = frame.dimensions().1 as u32;
+                                        frame.write_rgb8(&mut img_data);
+                                        break;
+                                    }
+                                }
+
+                                if !img_data.is_empty() && w > 0 && h > 0 {
+                                    if let Some(img) = RgbImage::from_raw(w, h, img_data) {
+                                        let _ = events_tx.send(
+                                            crate::telemetry::events::Event::SnapshotData {
+                                                data: img,
+                                            },
+                                        );
+
+                                        buffer.clear();
+                                        break;
+                                    }
+                                }
                             }
+                            Err(RecvError::Lagged(_)) => {}
+                            Err(RecvError::Closed) => break 'outer_loop,
                         }
-                        Err(RecvError::Lagged(_)) => {}
-                        Err(RecvError::Closed) => break 'outer_loop,
                     }
                 }
             }
