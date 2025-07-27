@@ -382,8 +382,10 @@ impl SnapshotActor {
     async fn run(mut self) {
         let mut rx = self.events.get_receiver();
 
-        while let Ok(telemetry::events::Event::RawFrameData { data }) = rx.recv().await {
-            let _ = self.handle_raw_frame_event(data).await;
+        while let Ok(event) = rx.recv().await {
+            if let telemetry::events::Event::RawFrameData { data } = event {
+                let _ = self.handle_raw_frame_event(data).await;
+            }
         }
     }
 }
