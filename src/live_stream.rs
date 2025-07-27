@@ -299,7 +299,7 @@ fn tapped_io_pipe(
         let mut rx_tap = tx.subscribe();
 
         let reader_handle = tokio::spawn(async move {
-            let mut buffer = [0u8; 8192];
+            let mut buffer = [0u8; 8192 * 8];
             loop {
                 match rpicam_stdout.read(&mut buffer).await {
                     Ok(0) => break,
