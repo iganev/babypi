@@ -412,7 +412,9 @@ fn tapped_io_pipe(
                                     break;
                                 }
                             }
-                            Err(RecvError::Lagged(_)) => {}
+                            Err(RecvError::Lagged(_)) => {
+                                info!("Pipe tap is lagging");
+                            }
                             Err(RecvError::Closed) => break 'outer_loop,
                         }
                     }
