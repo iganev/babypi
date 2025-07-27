@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -23,9 +24,16 @@ use ffmpeg::audio::FFMPEG_DEFAULT_AUDIO_DEVICE;
 use ffmpeg::Ffmpeg;
 use ffmpeg::FfmpegExtraArgs;
 use ffmpeg::FFMPEG_DEFAULT_STREAM_DIR;
+use image::codecs::jpeg::JpegEncoder;
+use image::ExtendedColorType;
+use image::RgbImage;
 use live_stream::LiveStream;
+use openh264::decoder::Decoder;
+use openh264::formats::YUVSource;
+use openh264::nal_units;
 use rpicam::Rpicam;
 use rpicam::RpicamDeviceMode;
+use tracing::debug;
 use tracing::error;
 
 use crate::audio_monitor::AudioMonitor;
@@ -87,6 +95,8 @@ impl BabyPi {
         if self.config.monitoring.enabled {
             self.audio_monitor = Some(self.run_audio_monitor().await?);
         }
+
+        tokio::spawn(SnapshotActor::new(self.events.clone()).run());
 
         Ok(())
     }
@@ -321,5 +331,57 @@ impl BabyPi {
         monitor.start().await?;
 
         Ok(monitor)
+    }
+}
+
+pub struct SnapshotActor {
+    events: EventDispatcher,
+}
+
+impl SnapshotActor {
+    fn new(events: EventDispatcher) -> Self {
+        Self { events }
+    }
+
+    async fn handle_raw_frame_event(&mut self, data: Vec<u8>) -> Result<()> {
+        let mut decoder = Decoder::new()?;
+        let mut img_data = Vec::new();
+        let mut w: u32 = 0;
+        let mut h: u32 = 0;
+
+        for packet in nal_units(&data) {
+            if let Ok(Some(frame)) = decoder.decode(packet) {
+                img_data = vec![0; frame.dimensions().0 * frame.dimensions().1 * 3];
+                w = frame.dimensions().0 as u32;
+                h = frame.dimensions().1 as u32;
+                frame.write_rgb8(&mut img_data);
+                break;
+            }
+        }
+
+        if let Some(img) = RgbImage::from_raw(w, h, img_data) {
+            let mut img_jpg = Vec::new();
+            let mut cursor = Cursor::new(&mut img_jpg);
+            let mut encoder = JpegEncoder::new_with_quality(&mut cursor, 80);
+            match encoder.encode(&img, w, h, ExtendedColorType::Rgb8) {
+                Ok(_) => {
+                    self.events
+                        .send(telemetry::events::Event::SnapshotData { data: img_jpg });
+                }
+                Err(e) => {
+                    debug!("Failed to encode jpg image: {}", e);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn run(mut self) {
+        let mut rx = self.events.get_receiver();
+
+        while let Ok(telemetry::events::Event::RawFrameData { data }) = rx.recv().await {
+            let _ = self.handle_raw_frame_event(data).await;
+        }
     }
 }

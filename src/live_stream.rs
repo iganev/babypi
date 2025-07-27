@@ -12,7 +12,7 @@ use tokio::process::{ChildStdin, ChildStdout};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{broadcast, RwLock};
 use tokio::task::JoinHandle;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 pub const LIVE_STREAM_BOOTSTRAP_RETRY: u8 = 10;
 
@@ -322,7 +322,7 @@ fn tapped_io_pipe(
         let tap_handle = tokio::spawn(async move {
             let mut timer = tokio::time::interval(Duration::from_secs(60)); // TODO
             let mut buffer = Vec::new();
-            let buffer_target = (128 * 1024) as usize;
+            let buffer_target = (128 * 1024) as usize; // TODO
 
             'outer_loop: loop {
                 timer.tick().await;
@@ -338,7 +338,7 @@ fn tapped_io_pipe(
                                         data: buffer.clone(),
                                     });
 
-                                info!("Sending {} bytes raw frame data event", buffer.len());
+                                debug!("Sending {} bytes raw frame data event", buffer.len());
 
                                 buffer.clear();
                                 break;

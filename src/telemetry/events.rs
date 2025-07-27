@@ -38,6 +38,10 @@ pub enum Event {
         data: Vec<u8>,
     },
 
+    SnapshotData {
+        data: Vec<u8>,
+    },
+
     AudioMonitor {
         #[serde(with = "float_precision_two")]
         rms: f32,
