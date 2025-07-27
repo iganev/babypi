@@ -337,6 +337,9 @@ fn tapped_io_pipe(
                                     events_tx.send(crate::telemetry::events::Event::RawFrameData {
                                         data: buffer.clone(),
                                     });
+
+                                info!("Sending {} bytes raw frame data event", buffer.len());
+
                                 buffer.clear();
                                 break;
                             }
