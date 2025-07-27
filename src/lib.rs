@@ -106,26 +106,21 @@ impl BabyPi {
                     _ = timer.tick() => {
                         events.send(telemetry::events::Event::SnapshotRequest);
                     }
-                    Ok(event) = rx.recv() => {
-                        match event {
-                            telemetry::events::Event::SnapshotData { data } =>  {
-                                let mut file = OpenOptions::new()
-                                            .write(true)
-                                            .create(true)
-                                            .truncate(true)
-                                            .open("/var/stream/snapshot.webp").expect("Failed to open file snapshot.webp");
+                    Ok(telemetry::events::Event::SnapshotData { data }) = rx.recv() => {
+                        let mut file = OpenOptions::new()
+                                    .write(true)
+                                    .create(true)
+                                    .truncate(true)
+                                    .open("/var/stream/snapshot.webp").expect("Failed to open file snapshot.webp");
 
-                                let encoder = WebPEncoder::new_lossless(&mut file);
-                                match encoder.encode(&data, data.width(), data.height(), ExtendedColorType::Rgb8) {
-                                    Ok(_) => {
-                                        info!("Saved snapshot.webp");
-                                    }
-                                    Err(e) => {
-                                        debug!("Failed to encode jpg image: {}", e);
-                                    }
-                                }
-                            },
-                            _ => {}
+                        let encoder = WebPEncoder::new_lossless(&mut file);
+                        match encoder.encode(&data, data.width(), data.height(), ExtendedColorType::Rgb8) {
+                            Ok(_) => {
+                                info!("Saved snapshot.webp");
+                            }
+                            Err(e) => {
+                                debug!("Failed to encode jpg image: {}", e);
+                            }
                         }
                     }
                 }
