@@ -322,7 +322,7 @@ fn tapped_io_pipe(
         let tap_handle = tokio::spawn(async move {
             let mut timer = tokio::time::interval(Duration::from_secs(60)); // TODO
             let mut buffer = Vec::new();
-            let buffer_target = (256 * 1024) as usize; // TODO
+            let buffer_target = (1204 * 1024) as usize; // TODO
 
             'outer_loop: loop {
                 timer.tick().await;

@@ -38,6 +38,8 @@ async fn main() -> Result<()> {
             h = frame.dimensions().1 as u32;
             frame.write_rgb8(&mut img_data);
             break;
+        } else {
+            println!("Invalid packet with length {}", packet.len());
         }
     }
 
