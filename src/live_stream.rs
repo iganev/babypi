@@ -365,10 +365,14 @@ fn tapped_io_pipe(
                 if let crate::telemetry::events::Event::SnapshotRequest = event {
                     let mut decoder = Decoder::new().expect("Unable to open h264 decoder");
 
+                    info!("Received snapshot request");
+
                     loop {
                         match rx_tap.recv().await {
                             Ok(data) => {
                                 buffer.extend_from_slice(&data);
+
+                                info!("Collecting raw frames data");
 
                                 let mut img_data = Vec::new();
                                 let mut w: u32 = 0;
@@ -384,6 +388,7 @@ fn tapped_io_pipe(
                                         w = frame.dimensions().0 as u32;
                                         h = frame.dimensions().1 as u32;
                                         frame.write_rgb8(&mut img_data);
+                                        info!("Parsed a valid frame");
                                         break;
                                     }
                                 }
@@ -395,6 +400,8 @@ fn tapped_io_pipe(
                                                 data: img,
                                             },
                                         );
+
+                                        info!("Sending snapshot data");
 
                                         buffer.clear();
                                         break;
