@@ -33,6 +33,8 @@ use openh264::formats::YUVSource;
 use openh264::nal_units;
 use rpicam::Rpicam;
 use rpicam::RpicamDeviceMode;
+use tokio::fs::OpenOptions;
+use tokio::io::AsyncWriteExt;
 use tracing::debug;
 use tracing::error;
 
@@ -361,13 +363,24 @@ impl SnapshotActor {
 
         if !img_data.is_empty() && w > 0 && h > 0 {
             if let Some(img) = RgbImage::from_raw(w, h, img_data) {
-                let mut img_jpg = Vec::new();
-                let mut cursor = Cursor::new(&mut img_jpg);
+                let mut img_enc = Vec::new();
+                let mut cursor = Cursor::new(&mut img_enc);
                 let encoder = WebPEncoder::new_lossless(&mut cursor);
                 match encoder.encode(&img, w, h, ExtendedColorType::Rgb8) {
                     Ok(_) => {
+                        // TODO TODO TODO
+                        let mut file = OpenOptions::new()
+                            .write(true)
+                            .create(true)
+                            .truncate(true)
+                            .open("/var/stream/snapshot.webp")
+                            .await?;
+
+                        file.write_all(&img_enc).await?;
+                        file.flush().await?;
+
                         self.events
-                            .send(telemetry::events::Event::SnapshotData { data: img_jpg });
+                            .send(telemetry::events::Event::SnapshotData { data: img_enc });
                     }
                     Err(e) => {
                         debug!("Failed to encode jpg image: {}", e);
