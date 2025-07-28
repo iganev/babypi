@@ -30,9 +30,9 @@ use image::ExtendedColorType;
 use live_stream::LiveStream;
 use rpicam::Rpicam;
 use rpicam::RpicamDeviceMode;
+use tokio::task::JoinHandle;
 use tracing::debug;
 use tracing::error;
-use tracing::info;
 
 use crate::audio_monitor::AudioMonitor;
 use crate::audio_monitor::AudioMonitorContext;
@@ -72,6 +72,7 @@ pub struct BabyPi {
     live_stream: Option<LiveStream>,
     web_server: Option<ServerHandle>,
     audio_monitor: Option<AudioMonitor>,
+    snapshot_pipeline: Option<JoinHandle<()>>,
 }
 
 impl BabyPi {
@@ -83,6 +84,7 @@ impl BabyPi {
             live_stream: None,
             web_server: None,
             audio_monitor: None,
+            snapshot_pipeline: None,
         }
     }
 
@@ -94,43 +96,7 @@ impl BabyPi {
             self.audio_monitor = Some(self.run_audio_monitor().await?);
         }
 
-        // tokio::spawn(SnapshotActor::new(self.events.clone()).run());
-
-        let events = self.events.clone();
-        tokio::spawn(async move {
-            let mut timer = tokio::time::interval(Duration::from_secs(60));
-            let mut rx = events.get_receiver();
-
-            loop {
-                tokio::select! {
-                    _ = timer.tick() => {
-                        events.send(telemetry::events::Event::SnapshotRequest);
-                        info!("Sent snapshot request");
-                    }
-                    event = rx.recv() => {
-                        if let Ok(telemetry::events::Event::SnapshotData { data }) = event {
-                            info!("Received snapshot data");
-
-                            let mut file = OpenOptions::new()
-                                        .write(true)
-                                        .create(true)
-                                        .truncate(true)
-                                        .open("/var/stream/snapshot.webp").expect("Failed to open file snapshot.webp");
-
-                            let encoder = WebPEncoder::new_lossless(&mut file);
-                            match encoder.encode(&data, data.width(), data.height(), ExtendedColorType::Rgb8) {
-                                Ok(_) => {
-                                    info!("Saved snapshot.webp");
-                                }
-                                Err(e) => {
-                                    debug!("Failed to encode jpg image: {}", e);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        });
+        self.snapshot_pipeline = Some(self.run_snapshot_pipeline().await?);
 
         Ok(())
     }
@@ -146,6 +112,10 @@ impl BabyPi {
 
         if let Some(mut audio_monitor) = self.audio_monitor.take() {
             audio_monitor.stop().await;
+        }
+
+        if let Some(snapshot_pipeline) = self.snapshot_pipeline.take() {
+            snapshot_pipeline.abort();
         }
 
         Ok(())
@@ -365,6 +335,55 @@ impl BabyPi {
         monitor.start().await?;
 
         Ok(monitor)
+    }
+
+    async fn run_snapshot_pipeline(&mut self) -> Result<JoinHandle<()>> {
+        let events = self.events.clone();
+        let snapshot_path = self
+            .config
+            .stream
+            .data_dir
+            .as_ref()
+            .and_then(|p| p.to_str().map(str::to_string))
+            .unwrap_or(FFMPEG_DEFAULT_STREAM_DIR.to_string());
+
+        Ok(tokio::spawn(async move {
+            let mut timer = tokio::time::interval(Duration::from_secs(60));
+            let mut rx = events.get_receiver();
+
+            loop {
+                tokio::select! {
+                    _ = timer.tick() => {
+                        events.send(telemetry::events::Event::SnapshotRequest);
+                        debug!(target = "babypi::snapshot_pipeline", "Sent snapshot request");
+                    }
+                    event = rx.recv() => {
+                        if let Ok(telemetry::events::Event::SnapshotData { data }) = event {
+                            debug!(target = "babypi::snapshot_pipeline", "Received snapshot data");
+
+                            let mut file = OpenOptions::new()
+                                        .write(true)
+                                        .create(true)
+                                        .truncate(true)
+                                        .open(format!("{}/snapshot.webp", snapshot_path))
+                                        .expect("Failed to open file snapshot.webp");
+
+                            let encoder = WebPEncoder::new_lossless(&mut file);
+                            match encoder.encode(&data, data.width(), data.height(), ExtendedColorType::Rgb8) {
+                                Ok(_) => {
+                                    debug!(target = "babypi::snapshot_pipeline", "Saved snapshot.webp");
+
+                                    events.send(telemetry::events::Event::SnapshotUpdated { filesize: data.len(), width: data.width(), height: data.height() });
+                                }
+                                Err(e) => {
+                                    debug!(target = "babypi::snapshot_pipeline", "Failed to encode webp image: {}", e);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }))
     }
 }
 

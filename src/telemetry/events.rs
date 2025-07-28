@@ -35,16 +35,17 @@ pub enum Event {
         status: Status,
     },
 
-    RawFrameData {
-        #[serde(skip)]
-        data: Vec<u8>,
-    },
-
     SnapshotRequest,
 
     SnapshotData {
         #[serde(skip)]
-        data: ImageBuffer<Rgb<u8>, Vec<u8>>, //Vec<u8>,
+        data: ImageBuffer<Rgb<u8>, Vec<u8>>,
+    },
+
+    SnapshotUpdated {
+        filesize: usize,
+        width: u32,
+        height: u32,
     },
 
     AudioMonitor {
