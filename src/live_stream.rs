@@ -16,7 +16,7 @@ use tokio::process::{ChildStdin, ChildStdout};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{broadcast, RwLock};
 use tokio::task::JoinHandle;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 pub const LIVE_STREAM_BOOTSTRAP_RETRY: u8 = 10;
 
@@ -296,7 +296,7 @@ fn tapped_io_pipe(
 
     tokio::spawn(async move {
         let (tx, mut rx_pipe) = broadcast::channel(10);
-        let mut rx_tap = tx.subscribe();
+        let rx_tap = tx.subscribe();
 
         let reader_handle = tokio::spawn(async move {
             let mut buffer = [0u8; 8192 * 8];
@@ -364,7 +364,7 @@ fn tapped_io_pipe(
                     let mut buffer = Vec::new();
                     let mut decoder = Decoder::new().expect("Unable to open h264 decoder");
 
-                    info!("Received snapshot request");
+                    debug!("Received snapshot request");
 
                     let mut rx = rx_tap.resubscribe();
 
@@ -373,7 +373,7 @@ fn tapped_io_pipe(
                             Ok(data) => {
                                 buffer.extend_from_slice(&data);
 
-                                info!("Collecting raw frames data");
+                                debug!("Collecting raw frames data");
 
                                 let mut img_data = Vec::new();
                                 let mut w: u32 = 0;
@@ -389,7 +389,7 @@ fn tapped_io_pipe(
                                         w = frame.dimensions().0 as u32;
                                         h = frame.dimensions().1 as u32;
                                         frame.write_rgb8(&mut img_data);
-                                        info!("Parsed a valid frame");
+                                        debug!("Parsed a valid frame");
                                         break;
                                     }
                                 }
@@ -402,20 +402,20 @@ fn tapped_io_pipe(
                                             },
                                         );
 
-                                        info!("Sending snapshot data");
+                                        debug!("Sending snapshot data");
 
                                         buffer.clear();
                                         break;
                                     }
-                                } else if buffer.len() > (1024 * 1024) {
-                                    info!("Buffer exceeded 1MB, quitting...");
+                                } else if buffer.len() > (2 * 1024 * 1024) {
+                                    debug!("Buffer exceeded 2MB, quitting...");
 
                                     buffer.clear();
                                     break;
                                 }
                             }
                             Err(RecvError::Lagged(_)) => {
-                                info!("Pipe tap is lagging");
+                                debug!("Pipe tap is lagging");
                             }
                             Err(RecvError::Closed) => break 'outer_loop,
                         }
