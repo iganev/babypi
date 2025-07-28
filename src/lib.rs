@@ -373,7 +373,7 @@ impl BabyPi {
                                 Ok(_) => {
                                     debug!(target = "babypi::snapshot_pipeline", "Saved snapshot.webp");
 
-                                    events.send(telemetry::events::Event::SnapshotUpdated { filesize: data.len(), width: data.width(), height: data.height() });
+                                    events.send(telemetry::events::Event::SnapshotUpdated { filesize: file.metadata().map(|m| m.len()).unwrap_or_default(), width: data.width(), height: data.height() });
                                 }
                                 Err(e) => {
                                     debug!(target = "babypi::snapshot_pipeline", "Failed to encode webp image: {}", e);

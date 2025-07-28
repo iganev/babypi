@@ -43,7 +43,7 @@ pub enum Event {
     },
 
     SnapshotUpdated {
-        filesize: usize,
+        filesize: u64,
         width: u32,
         height: u32,
     },
