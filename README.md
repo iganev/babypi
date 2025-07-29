@@ -16,7 +16,7 @@ Raspberry Pi DIY Baby Monitor
 | Raspberry Pi 4b       | 1   | $0 - $100              | [here](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/) |
 | IMX219-160 8MP IR-CUT | 1   | $25.99                 | [here](https://www.waveshare.com/imx219-160-camera.htm?sku=18946)    |
 | MLX90640 32x24 55 FOV | 1   | $54.99                 | [here](https://www.waveshare.com/MLX90640-D55-Thermal-Camera.htm)    |
-| HMMD-mmWave Radar     | 1   | $2.99                  | [here](https://www.waveshare.com/hmmd-mmwave-sensor.htm)             |
+| USB Lavalier Mic      | 1   | $23.99                 | [here](https://www.amazon.ca/dp/B074BLM973)                          |
 | Copper Heatsink       | 1   | $6.94                  | [here](https://www.aliexpress.us/item/3256803627506147.html)         |
 | few jumper wires      | 1   | $0 - $1                | [here](https://www.aliexpress.us/item/3256806860151128.html)         |
 | m2 nut inserts        | 12  | $0 - $1                | [here](https://www.aliexpress.us/item/3256804856964661.html)         |
@@ -25,6 +25,13 @@ Raspberry Pi DIY Baby Monitor
 | mono-pod;tri-pod;jig  | 1   | $0 - $50               | any |
 
 and some PLA filament... comes up to $100 - $200 total cost.
+
+## Optional Periphery
+
+| Name                  | Qty | Price (as of Mar 2025) | Link   |
+|-----------------------|-----|------------------------|--------|
+| BIGTREETECH S2DW V1.0 | 1   | $24                    | [here](https://www.amazon.ca/dp/B0CHFMBFCJ)                          |
+| HMMD-mmWave Radar     | 1   | $2.99                  | [here](https://www.waveshare.com/hmmd-mmwave-sensor.htm)             |
 
 ## Raspberry Pi
 
@@ -41,6 +48,10 @@ The reason I went for the narrow FOV version instead of the 110 FOV is because w
 ## HMMD-mmWave Radar
 
 Looking back, I would have probably skipped this and used an accelerometer under the mattress instead. Stay tuned for updates on that...  
+
+## BIGTREETECH S2DW V1.0 USB Accelerometer
+
+Requires custom firmware and 3D printed housing. Stay tuned for updates...  
 
 ## Heatsink
 
