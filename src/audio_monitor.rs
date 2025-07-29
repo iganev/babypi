@@ -11,7 +11,8 @@ use libpulse_binding as pulse;
 use libpulse_binding::sample::Format as PulseAudioSampleFormat;
 use libpulse_simple_binding as simple;
 use tokio::sync::broadcast::Sender;
-use tokio::task::JoinHandle;
+// use tokio::task::JoinHandle;
+use std::thread::JoinHandle;
 use tracing::{debug, error, info};
 
 pub const AUDIO_MONITOR_BOOTSTRAP_RETRY: u8 = 10;
@@ -145,7 +146,7 @@ impl AudioMonitor {
         let channel = self.channel.clone();
         let shutdown = self.shutdown_signal.clone();
 
-        Ok(tokio::task::spawn_blocking(move || {
+        Ok(std::thread::spawn(move || {
             let buffer_size = match context.sample_rate {
                 96_000 => 28_800,
                 48_000 => 14_400,
@@ -285,11 +286,11 @@ impl AudioMonitor {
     }
 
     /// Stop monitor
-    pub async fn stop(&mut self) {
+    pub fn stop(&mut self) {
         self.shutdown_signal.store(true, Ordering::SeqCst);
 
         if let Some(handle) = self.handle.take() {
-            let _ = handle.await;
+            let _ = handle.join();
         }
 
         info!(target = "audio_monitor", "Audio monitor stopped");

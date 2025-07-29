@@ -18,7 +18,6 @@ use actix_web::HttpResponse;
 use actix_web::HttpServer;
 use anyhow::Result;
 
-// use audio_monitor::AudioMonitor;
 use config::TomlConfig;
 use ffmpeg::audio::FfmpegAudio;
 use ffmpeg::audio::FFMPEG_DEFAULT_AUDIO_DEVICE;
@@ -111,7 +110,7 @@ impl BabyPi {
         }
 
         if let Some(mut audio_monitor) = self.audio_monitor.take() {
-            audio_monitor.stop().await;
+            audio_monitor.stop();
         }
 
         if let Some(snapshot_pipeline) = self.snapshot_pipeline.take() {
@@ -386,74 +385,3 @@ impl BabyPi {
         }))
     }
 }
-
-// pub struct SnapshotActor {
-//     events: EventDispatcher,
-// }
-
-// impl SnapshotActor {
-//     fn new(events: EventDispatcher) -> Self {
-//         Self { events }
-//     }
-
-//     async fn handle_raw_frame_event(&mut self, data: Vec<u8>) -> Result<()> {
-//         let mut decoder = Decoder::new()?;
-//         let mut img_data = Vec::new();
-//         let mut w: u32 = 0;
-//         let mut h: u32 = 0;
-
-//         for packet in nal_units(&data) {
-//             if let Ok(Some(frame)) = decoder.decode(packet) {
-//                 img_data = vec![0; frame.dimensions().0 * frame.dimensions().1 * 3];
-//                 w = frame.dimensions().0 as u32;
-//                 h = frame.dimensions().1 as u32;
-//                 frame.write_rgb8(&mut img_data);
-//                 break;
-//             }
-//         }
-
-//         if !img_data.is_empty() && w > 0 && h > 0 {
-//             if let Some(img) = RgbImage::from_raw(w, h, img_data) {
-//                 let mut img_enc = Vec::new();
-//                 let mut cursor = Cursor::new(&mut img_enc);
-//                 let encoder = WebPEncoder::new_lossless(&mut cursor);
-//                 match encoder.encode(&img, w, h, ExtendedColorType::Rgb8) {
-//                     Ok(_) => {
-//                         // TODO TODO TODO
-//                         let mut file = OpenOptions::new()
-//                             .write(true)
-//                             .create(true)
-//                             .truncate(true)
-//                             .open("/var/stream/snapshot.webp")
-//                             .await?;
-
-//                         file.write_all(&img_enc).await?;
-//                         file.flush().await?;
-
-//                         self.events
-//                             .send(telemetry::events::Event::SnapshotData { data: img_enc });
-//                     }
-//                     Err(e) => {
-//                         debug!("Failed to encode jpg image: {}", e);
-//                     }
-//                 }
-//             } else {
-//                 debug!("Failed to parse RGB image data");
-//             }
-//         } else {
-//             debug!("Failed to detect frame in nal units");
-//         }
-
-//         Ok(())
-//     }
-
-//     async fn run(mut self) {
-//         let mut rx = self.events.get_receiver();
-
-//         while let Ok(event) = rx.recv().await {
-//             if let telemetry::events::Event::RawFrameData { data } = event {
-//                 let _ = self.handle_raw_frame_event(data).await;
-//             }
-//         }
-//     }
-// }

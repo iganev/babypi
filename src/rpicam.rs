@@ -15,7 +15,6 @@ use tokio::process::Child;
 use tokio::process::Command;
 use tracing::debug;
 use tracing::error;
-use tracing::info;
 
 pub const RPICAM_BIN: &str = "rpicam-vid";
 
@@ -191,7 +190,7 @@ impl Rpicam {
         tokio::spawn(async move {
             match child.wait().await {
                 Ok(code) => {
-                    info!(
+                    debug!(
                         "Child process {} exit code: {}",
                         RPICAM_BIN,
                         code.code().unwrap_or(-1)
@@ -280,7 +279,7 @@ impl Rpicam {
                     return Err(anyhow!("Failed to parse device information: {}", full));
                 }
             } else {
-                // info!("Unparsed Line: {}", line);
+                debug!("Unparsed Line: {}", line);
             }
         }
 

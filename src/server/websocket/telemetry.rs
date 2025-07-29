@@ -5,7 +5,7 @@ use chrono::Utc;
 use serde_json::json;
 use std::time::{Duration, Instant};
 use tokio_stream::{wrappers::BroadcastStream, StreamExt};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::telemetry::events::EventDispatcher;
 
@@ -32,9 +32,7 @@ impl TelemetryWebsocketSession {
         ctx.run_interval(Duration::from_secs(5), |act, ctx| {
             if Instant::now().duration_since(act.hb) > Duration::from_secs(10) {
                 ctx.stop();
-
                 info!(target = "telemetry", "Connection timeout");
-
                 return;
             }
 
@@ -107,10 +105,10 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for TelemetryWebsocke
                 self.hb = Instant::now();
             }
             Ok(ws::Message::Text(text)) => {
-                info!(target = "telemetry", "Received text: {}", text);
+                debug!(target = "telemetry", "Received text: {}", text);
             }
             Ok(ws::Message::Binary(bin)) => {
-                info!(target = "telemetry", "Received binary: {:#?}", bin);
+                debug!(target = "telemetry", "Received binary: {:#?}", bin);
             }
             Ok(ws::Message::Close(reason)) => {
                 info!(target = "telemetry", "Connection closed: {:?}", reason);

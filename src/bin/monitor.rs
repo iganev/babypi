@@ -47,7 +47,7 @@ async fn main() -> Result<()> {
             }
             _ = tokio::signal::ctrl_c() => {
                 info!("Shutdown signal received");
-                monitor.stop().await;
+                monitor.stop();
                 break;
             }
         }
