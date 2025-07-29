@@ -86,12 +86,17 @@ impl LiveStreamState {
     pub async fn stop(&mut self) {
         self.running = false;
 
-        if let Some(handle_pipe) = self.handle_pipe.take() {
-            handle_pipe.abort();
-        }
-
         if let Some(handle_watch) = self.handle_watch.take() {
             handle_watch.abort();
+        }
+
+        if let Some(mut rpicam_process) = self.rpicam_process.take() {
+            if let Err(e) = rpicam_process.stop() {
+                error!(
+                    target = "live_stream",
+                    "Error while stopping `{}`: {}", RPICAM_BIN, e
+                );
+            }
         }
 
         if let Some(mut ffmpeg_process) = self.ffmpeg_process.take() {
@@ -103,13 +108,8 @@ impl LiveStreamState {
             }
         }
 
-        if let Some(mut rpicam_process) = self.rpicam_process.take() {
-            if let Err(e) = rpicam_process.stop() {
-                error!(
-                    target = "live_stream",
-                    "Error while stopping `{}`: {}", RPICAM_BIN, e
-                );
-            }
+        if let Some(handle_pipe) = self.handle_pipe.take() {
+            handle_pipe.abort();
         }
     }
 
