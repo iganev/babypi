@@ -26,7 +26,7 @@ Raspberry Pi DIY Baby Monitor
 
 and some PLA filament... comes up to $100 - $200 total cost.
 
-## Optional Periphery
+## Optional Peripherals
 
 | Name                  | Qty | Price (as of Mar 2025) | Link   |
 |-----------------------|-----|------------------------|--------|
